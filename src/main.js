@@ -1015,8 +1015,12 @@ function trigger() {
         updateProgress(60);
 
         // Atualizador Y2JB (update.js): aplica y2jb_update.zip de USB ou /data, se existir
+        updateProgress(65);
+        if (typeof window.setTitle === 'function') window.setTitle("Verificando atualização");
+        await log("Verificando atualização do Y2JB...");
         await load_localscript('update.js');
         await start_update();
+        if (typeof window.setTitle === 'function') window.setTitle("PS5 desbloqueado");
         
         ////////////////////
         // EXECUÇÃO PRINCIPAL //
@@ -1026,6 +1030,7 @@ function trigger() {
 
         
     } catch (e) {                
+        if (typeof window.setTitle === 'function') window.setTitle("Falha ao desbloquear");
         await log('EXCEÇÃO: ' + e.message);
         await log(e.stack);
     }

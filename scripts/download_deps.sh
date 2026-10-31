@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Script to download dependency binaries from GitHub releases
+# Baixa o kexp (binário) das releases do GitHub, na versão fixada pelo submódulo.
+# O elfldr NÃO é baixado aqui: ele é compilado a partir do submódulo em build.sh.
 
 set -euo pipefail
 
@@ -60,37 +61,22 @@ resolve_dep_release_url() {
     echo "$url"
 }
 
-echo "Resolving release URL for pinned ps5-elfldr..."
-ELFLDR_URL=$(resolve_dep_release_url "third_party/ps5-elfldr" "itsPLK/ps5-elfldr" '\.elf')
-
 echo "Resolving release URL for pinned ps5-kexp..."
 KEXP_URL=$(resolve_dep_release_url "third_party/ps5-kexp" "itsPLK/ps5-kexp" '\.bin')
-
-ELFLDR_VER=$(echo "$ELFLDR_URL" | grep -oE 'download/[^/]+' | cut -d'/' -f2)
 KEXP_VER=$(echo "$KEXP_URL" | grep -oE 'download/[^/]+' | cut -d'/' -f2)
 
 if [ "${GITHUB_OUTPUT:-}" ]; then
-    echo "elfldr_ver=${ELFLDR_VER}" >> "$GITHUB_OUTPUT"
     echo "kexp_ver=${KEXP_VER}" >> "$GITHUB_OUTPUT"
 fi
 
-echo "Cleaning old binaries from $DEST_DIR..."
+echo "Cleaning old kexp binaries from $DEST_DIR..."
 rm -f "$DEST_DIR"/kexp-*.bin
-rm -f "$DEST_DIR"/elfldr-ps5-*.elf
 rm -f "$DEST_DIR"/kexp_v*.bin
-rm -f "$DEST_DIR"/elfldr*.elf
 
-ELFLDR_FILE="elfldr-ps5-${ELFLDR_VER}.elf"
 KEXP_FILE="kexp-${KEXP_VER}.bin"
-
-echo "Downloading $ELFLDR_URL to $DEST_DIR/$ELFLDR_FILE..."
-curl -L -o "$DEST_DIR/$ELFLDR_FILE" "$ELFLDR_URL"
-
 echo "Downloading $KEXP_URL to $DEST_DIR/$KEXP_FILE..."
 curl -L -o "$DEST_DIR/$KEXP_FILE" "$KEXP_URL"
 
-echo "Successfully downloaded all dependencies!"
-echo "Dependency versions:"
-echo "  - elfldr: $ELFLDR_VER"
+echo "Successfully downloaded kexp!"
 echo "  - kexp: $KEXP_VER"
 ls -la "$DEST_DIR"
