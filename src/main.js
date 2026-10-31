@@ -1013,6 +1013,10 @@ function trigger() {
         await load_localscript('aioshellcode.js');
         await load_localscript('kexp.js');
         updateProgress(60);
+
+        // Atualizador Y2JB (update.js): aplica y2jb_update.zip de USB ou /data, se existir
+        await load_localscript('update.js');
+        await start_update();
         
         ////////////////////
         // EXECUÇÃO PRINCIPAL //
