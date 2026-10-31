@@ -1,0 +1,8 @@
+.DS_Store
+y2jb_update.zip
+src/elfldr-ps5-*.elf
+src/kexp-*.bin
+build_dir/
+download0.dat
+download0/
+y2jb_update/
