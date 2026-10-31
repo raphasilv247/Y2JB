@@ -132,3 +132,4 @@ jobs:
             --target "$TARGET_COMMIT" \
             --title "$RELEASE_TITLE" \
             --notes-file release_notes.md
+
