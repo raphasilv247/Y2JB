@@ -21,7 +21,6 @@ jobs:
         with:
           python-version: '3.x'
 
-<<<<<<< HEAD
       - name: Checkout PS5 Payload SDK
         uses: actions/checkout@v4
         with:
@@ -34,7 +33,7 @@ jobs:
           sudo apt update
           sudo apt install -y xxd clang-18 lld-18
           make DESTDIR=${{ runner.tool_cache }}/ps5-payload-sdk clean install
-=======
+          
       - name: Setup PS5 Payload SDK
         run: |
           git clone --depth 1 https://github.com/ps5-payload-dev/sdk.git "$RUNNER_TEMP/ps5-sdk-src"
@@ -42,7 +41,6 @@ jobs:
           sudo apt update
           sudo apt install -y xxd clang-18 lld-18
           make DESTDIR="${{ runner.tool_cache }}/ps5-payload-sdk" clean install
->>>>>>> 828ef91 (Remove Y2JB.zip do repositório e ignora zips)
           echo "PS5_PAYLOAD_SDK=${{ runner.tool_cache }}/ps5-payload-sdk" >> $GITHUB_ENV
 
       - name: Build Package
