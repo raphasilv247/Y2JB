@@ -6,3 +6,7 @@ build_dir/
 download0.dat
 download0/
 y2jb_update/
+<<<<<<< HEAD
+=======
+*.zip
+>>>>>>> 828ef91 (Remove Y2JB.zip do repositório e ignora zips)
