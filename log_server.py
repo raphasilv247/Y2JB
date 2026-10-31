@@ -3,7 +3,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 
 class LogHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        pass  # Suppress default HTTP logging
+        pass  # Suprime o log HTTP padrão
     
     def do_POST(self):
         length = int(self.headers['Content-Length'])
@@ -21,5 +21,5 @@ class LogHandler(BaseHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
 
-print("Logger listening on port 8080...")
+print("Servidor de log ouvindo na porta 8080...")
 HTTPServer(('0.0.0.0', 8080), LogHandler).serve_forever()

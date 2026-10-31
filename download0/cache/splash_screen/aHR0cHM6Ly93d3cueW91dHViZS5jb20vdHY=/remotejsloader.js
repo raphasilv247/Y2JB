@@ -8,31 +8,31 @@
     const payload_buf = malloc(MAXSIZE);
 
     function create_socket() {
-        // Clear sockaddr
+        // Limpa o sockaddr
         for (let i = 0; i < 16; i++) write8(sockaddr_in + BigInt(i), 0);
 
         const sock_fd = syscall(SYSCALL.socket, AF_INET, SOCK_STREAM, 0n);
         if (sock_fd === 0xffffffffffffffffn) {
-            throw new Error("Socket creation failed: " + toHex(sock_fd));
+            throw new Error("falha na criação do socket: " + toHex(sock_fd));
         }
 
         write32(enable, 1);
         syscall(SYSCALL.setsockopt, sock_fd, SOL_SOCKET, SO_REUSEADDR, enable, 4n);
 
         write8(sockaddr_in + 1n, AF_INET);
-        write16(sockaddr_in + 2n, 0);        // port 0
+        write16(sockaddr_in + 2n, 0);        // porta 0
         write32(sockaddr_in + 4n, 0);        // INADDR_ANY
 
         const bind_ret = syscall(SYSCALL.bind, sock_fd, sockaddr_in, 16n);
         if (bind_ret === 0xffffffffffffffffn) {
             syscall(SYSCALL.close, sock_fd);
-            throw new Error("Bind failed: " + toHex(bind_ret));
+            throw new Error("falha no bind: " + toHex(bind_ret));
         }
 
         const listen_ret = syscall(SYSCALL.listen, sock_fd, 3n);
         if (listen_ret === 0xffffffffffffffffn) {
             syscall(SYSCALL.close, sock_fd);
-            throw new Error("Listen failed: " + toHex(listen_ret));
+            throw new Error("falha no listen: " + toHex(listen_ret));
         }
 
         return sock_fd;
@@ -77,10 +77,10 @@
         
         if (port !== 50000) {
             if (last_sock !== null) {
-                await log("Warning: did not get port 50000 after " + attempts + " attempts; using last assigned port " + last_port);
+                await log("Aviso: não obteve a porta 50000 após " + attempts + " tentativas; usando a última porta atribuída " + last_port);
                 return { sock_fd: last_sock, port: last_port };
             } else {
-                throw new Error("Failed to create any socket after " + attempts + " attempts");
+                throw new Error("Falha ao criar qualquer socket após " + attempts + " tentativas");
             }
         }
 
@@ -93,35 +93,35 @@
 
         const current_ip = get_current_ip();
         if (current_ip === null) {
-            send_notification("No network available!\nAborting...");
-            throw new Error("No network available!\nAborting...");
+            send_notification("Sem rede disponível!\nAbortando...");
+            throw new Error("Sem rede disponível!\nAbortando...");
         }
 
         const network_str = current_ip + ":" + port;
-        await log("Socket recreated on " + network_str);
-        send_notification("Remote JS Loader\nListening on " + network_str);
+        await log("Socket recriado em " + network_str);
+        send_notification("Remote JS Loader\nEscutando em " + network_str);
 
         return { sock_fd, port, network_str };
     }
 
-    // Initial setup (retry until port 50000, but fall back to last random port if attempts exhausted)
+    // Configuração inicial (tenta até a porta 50000, mas usa a última porta aleatória se as tentativas acabarem)
     let { sock_fd, port } = await setup_socket_until_port_50000();
 
     const current_ip = get_current_ip();
     if (current_ip === null) {
-        send_notification("No network available!\nAborting...");
-        throw new Error("No network available!\nAborting...");
+        send_notification("Sem rede disponível!\nAbortando...");
+        throw new Error("Sem rede disponível!\nAbortando...");
     }
 
     let network_str = current_ip + ":" + port;
-    await log("Remote JS Loader listening on " + network_str);
-    send_notification("Remote JS Loader\nListening on " + network_str);
+    await log("Remote JS Loader escutando em " + network_str);
+    send_notification("Remote JS Loader\nEscutando em " + network_str);
 
     const decoder = new TextDecoder('utf-8');
 
     while (true) {
         try {
-            await log("Awaiting connection at " + network_str);
+            await log("Aguardando conexão em " + network_str);
 
             write32(addrlen, 16);
             const client_fd = syscall(SYSCALL.accept, sock_fd, sockaddr_in, addrlen);
@@ -154,7 +154,7 @@
 
                 if (n === 0) break;
                 if (n < 0) {
-                    await log("read() error: " + n);
+                    await log("erro em read(): " + n);
                     read_error = true;
                     break;
                 }
@@ -166,7 +166,7 @@
             //await log("Finished reading, total=" + total_read + " error=" + read_error);
 
             if (read_error || total_read === 0) {
-                await log("No valid data received");
+                await log("Nenhum dado válido recebido");
                 syscall(SYSCALL.close, client_fd);
                 continue;
             }
@@ -181,8 +181,8 @@
                 bytes[1] === 0x45 &&
                 bytes[2] === 0x4C &&
                 bytes[3] === 0x46) {
-                await log("ELF payload is not supported.\nOnly send javascript file");
-                send_notification("ELF payload is not supported.\nOnly send javascript file");
+                await log("Payload ELF não é suportado.\nEnvie apenas arquivo javascript");
+                send_notification("Payload ELF não é suportado.\nEnvie apenas arquivo javascript");
                 syscall(SYSCALL.close, client_fd);
                 continue;
             }
@@ -193,17 +193,17 @@
             syscall(SYSCALL.setsockopt, client_fd, SOL_SOCKET, 0x800n, enable, 4n);
             _log_socket_fd = client_fd;
 
-            await log("Executing payload...");
+            await log("Executando payload...");
             try {
                 await eval(js_code);
-                await log("Executed successfully");
+                await log("Executado com sucesso");
             } finally {
                 _log_socket_fd = null;
                 syscall(SYSCALL.close, client_fd);
             }
 
         } catch (e) {
-            await log("ERROR in accept loop: " + e.message);
+            await log("ERRO no loop de accept: " + e.message);
             await log(e.stack);
         }
     }

@@ -1,5 +1,5 @@
 
-// Write UTF-8 string to existing buffer
+// Escreve uma string UTF-8 em um buffer existente
 function write_string(addr, str) {
     const encoder = new TextEncoder();
     const bytes = encoder.encode(str);
@@ -30,19 +30,19 @@ function send_notification(text) {
     const notify_buffer = malloc(Number(notify_buffer_size));
     const icon_uri = "cxml://psnotification/tex_icon_system";
                         
-    // Setup notification structure
+    // Configura a estrutura da notificação
     write32(notify_buffer + 0x0n, 0);           // type
     write32(notify_buffer + 0x28n, 0);          // unk3
     write32(notify_buffer + 0x2cn, 1);          // use_icon_image_uri
-    write32(notify_buffer + 0x10n, 0xffffffff); // target_id (-1 as unsigned)
+    write32(notify_buffer + 0x10n, 0xffffffff); // target_id (-1 sem sinal)
     
-    // Write message at offset 0x2D
+    // Escreve a mensagem no offset 0x2D
     write_string(notify_buffer + 0x2dn, text);
     
-    // Write icon URI at offset 0x42D
+    // Escreve a URI do ícone no offset 0x42D
     write_string(notify_buffer + 0x42dn, icon_uri);
     
-    // Open /dev/notification0
+    // Abre /dev/notification0
     const dev_path = alloc_string("/dev/notification0");
     const fd = syscall(SYSCALL.open, dev_path, O_WRONLY);
     
@@ -76,7 +76,7 @@ function sysctlbyname(name, oldp, oldp_len, newp, newp_len) {
     const name_len = BigInt(name.length);
     
     if (syscall(SYSCALL.sysctl, translate_name_mib, 2n, mib, size, name_addr, name_len) === 0xffffffffffffffffn) {
-        throw new Error("failed to translate sysctl name to mib (" + name + ")");
+        throw new Error("falha ao traduzir o nome do sysctl para mib (" + name + ")");
     }
     
     let mib_len = read64(size) / 4n
@@ -95,8 +95,8 @@ function get_fwversion() {
     write64(size, 0x8n);
     
     if (sysctlbyname("kern.sdk_version", buf, size, 0n, 0n)) {
-        const byte1 = Number(read8(buf + 2n));  // Minor version (first byte)
-        const byte2 = Number(read8(buf + 3n));  // Major version (second byte)
+        const byte1 = Number(read8(buf + 2n));  // Versão menor (primeiro byte)
+        const byte2 = Number(read8(buf + 3n));  // Versão maior (segundo byte)
         
         const version = byte2.toString(16) + '.' + byte1.toString(16).padStart(2, '0');
         return version;
@@ -112,17 +112,17 @@ function call_pipe_rop(fildes) {
     rop_chain[rop_i++] = SYSCALL.pipe;
     rop_chain[rop_i++] = syscall_wrapper;
     
-    // Store rax (read_fd) to fildes[0]
+    // Armazena rax (read_fd) em fildes[0]
     rop_chain[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
     rop_chain[rop_i++] = fildes;
     rop_chain[rop_i++] = ROP.mov_qword_rdi_rax; // mov qword [rdi], rax ; ret
     
-    // Store rdx (write_fd) to fildes[4]
+    // Armazena rdx (write_fd) em fildes[4]
     rop_chain[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
     rop_chain[rop_i++] = fildes + 4n;
     rop_chain[rop_i++] = ROP.mov_qword_rdi_rdx; // mov qword [rdi], rdx ; ret
     
-    // Return safe tagged value to JavaScript
+    // Retorna um valor marcado seguro para o JavaScript
     rop_chain[rop_i++] = ROP.mov_rax_0x200000000; // mov rax, 0x200000000 ; ret
     rop_chain[rop_i++] = ROP.pop_rbp; // pop rbp ; ret
     rop_chain[rop_i++] = saved_fp;
@@ -214,26 +214,26 @@ function find_pattern(buffer, pattern_string) {
 }
 
 function get_current_ip() {
-    // Get interface count
+    // Obtém a quantidade de interfaces
     const count = Number(syscall(SYSCALL.netgetiflist, 0n, 10n));
     if (count < 0) {
         return null;
     }
     
-    // Allocate buffer for interfaces
+    // Aloca buffer para as interfaces
     const iface_size = 0x1e0;
     const iface_buf = malloc(iface_size * count);
     
-    // Get interface list
+    // Obtém a lista de interfaces
     if (Number(syscall(SYSCALL.netgetiflist, iface_buf, BigInt(count))) < 0) {
         return null;
     }
     
-    // Parse interfaces
+    // Analisa as interfaces
     for (let i = 0; i < count; i++) {
         const offset = BigInt(i * iface_size);
         
-        // Read interface name (null-terminated string at offset 0)
+        // Lê o nome da interface (string terminada em nulo no offset 0)
         let iface_name = "";
         for (let j = 0; j < 16; j++) {
             const c = Number(read8(iface_buf + offset + BigInt(j)));
@@ -241,7 +241,7 @@ function get_current_ip() {
             iface_name += String.fromCharCode(c);
         }
         
-        // Read IP address (4 bytes at offset 0x28)
+        // Lê o endereço IP (4 bytes no offset 0x28)
         const ip_offset = offset + 0x28n;
         const ip1 = Number(read8(iface_buf + ip_offset));
         const ip2 = Number(read8(iface_buf + ip_offset + 1n));
@@ -249,7 +249,7 @@ function get_current_ip() {
         const ip4 = Number(read8(iface_buf + ip_offset + 3n));
         const iface_ip = ip1 + "." + ip2 + "." + ip3 + "." + ip4;
         
-        // Check if this is eth0 or wlan0 with valid IP
+        // Verifica se é eth0 ou wlan0 com IP válido
         if ((iface_name === "eth0" || iface_name === "wlan0") && 
             iface_ip !== "0.0.0.0" && iface_ip !== "127.0.0.1") {
             return iface_ip;
@@ -267,13 +267,13 @@ function is_jailbroken() {
         return true;
     } else {
         
-        // Check if elfldr is running at 9021
+        // Verifica se o elfldr está rodando na porta 9021
         const sockaddr_in = malloc(16);
         const enable = malloc(4);
         
         const sock_fd = syscall(SYSCALL.socket, AF_INET, SOCK_STREAM, 0n);
         if (sock_fd === 0xffffffffffffffffn) {
-            throw new Error("socket failed: " + toHex(sock_fd));
+            throw new Error("falha no socket: " + toHex(sock_fd));
         }
     
         try {
@@ -281,10 +281,10 @@ function is_jailbroken() {
             syscall(SYSCALL.setsockopt, sock_fd, SOL_SOCKET, SO_REUSEADDR, enable, 4n);
     
             write8(sockaddr_in + 1n, AF_INET);
-            write16(sockaddr_in + 2n, 0x3D23n);      // port 9021
+            write16(sockaddr_in + 2n, 0x3D23n);      // porta 9021
             write32(sockaddr_in + 4n, 0x0100007Fn);  // 127.0.0.1
     
-            // Try to connect to 127.0.0.1:9021
+            // Tenta conectar em 127.0.0.1:9021
             const ret = syscall(SYSCALL.connect, sock_fd, sockaddr_in, 16n);
     
             if (ret === 0n) {
@@ -303,7 +303,7 @@ function is_jailbroken() {
 
 function check_jailbroken() {
     if (!is_jailbroken()) {
-        throw new Error("process is not jailbroken")
+        throw new Error("o processo não possui jailbreak")
     }
 }
 
@@ -313,7 +313,7 @@ function load_prx(path) {
 
     const result = syscall(SYSCALL.dynlib_load_prx, path_addr, 0n, handle_out, 0n);
     if (result !== 0n) {
-        throw new Error("dynlib_load_prx error: " + toHex(result));
+        throw new Error("erro em dynlib_load_prx: " + toHex(result));
     }
 
     return read32(handle_out);
@@ -323,7 +323,7 @@ function dlsym(handle, sym) {
     check_jailbroken();
     
     if (typeof sym !== "string") {
-        throw new Error("dlsym expect string symbol name");
+        throw new Error("dlsym espera o nome do símbolo como string");
     }
 
     const sym_addr = alloc_string(sym);
@@ -331,7 +331,7 @@ function dlsym(handle, sym) {
 
     const result = syscall(SYSCALL.dlsym, handle, sym_addr, addr_out);
     if (result === 0xffffffffffffffffn) {
-        throw new Error("dlsym error");
+        throw new Error("erro em dlsym");
     }
 
     return read64(addr_out);
@@ -351,7 +351,7 @@ function get_title_id() {
     write64(oldlen, 0x58n);
     
     if (syscall(SYSCALL.sysctl, mib, 4n, app_info, oldlen, 0n, 0n) === 0xffffffffffffffffn) {
-        throw new Error("sysctl failed in get_title_id()");
+        throw new Error("sysctl falhou em get_title_id()");
     }
 
     return read_null_terminated_string(app_info + 0x10n);
@@ -405,14 +405,14 @@ function read_file(path) {
     const fd = syscall(SYSCALL.open, path_addr, O_RDONLY);
     
     if (fd === 0xffffffffffffffffn) {
-        throw new Error("file not exist: " + path);
+        throw new Error("arquivo não existe: " + path);
     }
     
     const stat_buf = malloc(0x100);
     const fstat_result = syscall(SYSCALL.fstat, fd, stat_buf);
     if (fstat_result === 0xffffffffffffffffn) {
         syscall(SYSCALL.close, fd);
-        throw new Error("fstat failed for: " + path);
+        throw new Error("fstat falhou para: " + path);
     }
     
     const file_size = read64(stat_buf + 0x48n);
@@ -423,7 +423,7 @@ function read_file(path) {
     syscall(SYSCALL.close, fd);
     
     if (bytes_read !== file_size) {
-        throw new Error("failed to read complete file: " + path);
+        throw new Error("falha ao ler o arquivo completo: " + path);
     }
     
     return read_buffer(buffer, file_size);
@@ -438,17 +438,17 @@ function write_file(path, text) {
     const fd = syscall(SYSCALL.open, path_addr, flags, mode);
 
     if (fd === 0xffffffffffffffffn) {
-        throw new Error("open failed for " + path + " fd: " + toHex(fd));
+        throw new Error("falha ao abrir " + path + " fd: " + toHex(fd));
     }
     
     const written = syscall(SYSCALL.write, fd, data_addr, BigInt(text.length));
     if (written === 0xffffffffffffffffn) {
         syscall(SYSCALL.close, fd);
-        throw new Error("write failed : " + toHex(written));
+        throw new Error("falha na escrita: " + toHex(written));
     }
 
     syscall(SYSCALL.close, fd);
-    return Number(written); // number of bytes written
+    return Number(written); // número de bytes escritos
 }
 
 function get_nidpath() {
@@ -459,7 +459,7 @@ function get_nidpath() {
     
     const ret = syscall(SYSCALL.randomized_path, 0n, path_buffer, len_ptr);
     if (ret === 0xffffffffffffffffn) {
-        throw new Error("randomized_path failed : " + toHex(ret));        
+        throw new Error("falha em randomized_path: " + toHex(ret));        
     }
     
     return read_null_terminated_string(path_buffer);
@@ -476,46 +476,46 @@ async function send_network(ip_address, port, sock_type, buffer) {
     const sockaddr_in = malloc(16);
     const buf_ptr = malloc(buffer.length);
     
-    // Copy buffer to memory
+    // Copia o buffer para a memória
     for (let i = 0; i < buffer.length; i++) {
         write8(buf_ptr + BigInt(i), buffer[i]);
     }
     
-    // Create socket (SOCK_STREAM or SOCK_DGRAM)
+    // Cria o socket (SOCK_STREAM ou SOCK_DGRAM)
     const sock_fd = syscall(SYSCALL.socket, AF_INET, sock_type, 0n);
     if (sock_fd === 0xffffffffffffffffn) {
-        throw new Error("Socket creation failed");
+        throw new Error("falha na criação do socket");
     }
     
-    // Parse IP address (e.g., "127.0.0.1" -> 0x0100007f)
+    // Analisa o endereço IP (ex.: "127.0.0.1" -> 0x0100007f)
     const ip_parts = ip_address.split('.').map(Number);
     const ip_addr = (ip_parts[0]) | (ip_parts[1] << 8) | (ip_parts[2] << 16) | (ip_parts[3] << 24);
     
-    // Setup address
+    // Configura o endereço
     for (let i = 0; i < 16; i++) write8(sockaddr_in + BigInt(i), 0);
     write8(sockaddr_in + 1n, AF_INET);
-    write16(sockaddr_in + 2n, (port << 8) | (port >> 8)); // port in network byte order
+    write16(sockaddr_in + 2n, (port << 8) | (port >> 8)); // porta em ordem de bytes de rede
     write32(sockaddr_in + 4n, ip_addr);
     
     if (sock_type === SOCK_STREAM) {
-        // TCP: Connect then send
+        // TCP: conecta e depois envia
         const conn_ret = syscall(SYSCALL.connect, sock_fd, sockaddr_in, 16n);
         if (conn_ret === 0xffffffffffffffffn) {
             syscall(SYSCALL.close, sock_fd);
-            throw new Error("Connect failed");
+            throw new Error("falha na conexão");
         }
         
         const write_ret = syscall(SYSCALL.write, sock_fd, buf_ptr, BigInt(buffer.length));
         if (write_ret === 0xffffffffffffffffn) {
             syscall(SYSCALL.close, sock_fd);
-            throw new Error("Write failed");
+            throw new Error("falha na escrita");
         }
     } else {
-        // UDP: Use sendto
+        // UDP: usa sendto
         const send_ret = syscall(SYSCALL.sendto, sock_fd, buf_ptr, BigInt(buffer.length), 0n, sockaddr_in, 16n);
         if (send_ret === 0xffffffffffffffffn) {
             syscall(SYSCALL.close, sock_fd);
-            throw new Error("Sendto failed");
+            throw new Error("falha no sendto");
         }
     }
     

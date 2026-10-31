@@ -1,169 +1,154 @@
 # Y2JB
 
-Userland code execution using the PS5 YouTube app.
+Execução de código em userland usando o app do YouTube do PS5.
 
-## Requirements
+## Requisitos
 
-- At least 4.03 firmware PS5
+- PS5 com firmware 4.03 ou superior
 
-### For Jailbroken PS5 (Webkit, Lua, BD-JB)
-- Fake or legit activated PS5
-- For firmware 4.03 to 12.40 get YouTube app (PPSA01650) version 01.000.003 PKG
-- For firmware 12.60 and up get YouTube app (PPSA01650) version 01.000.030 PKG
-- FTP access to the console
+### Para PS5 com jailbreak (Webkit, Lua, BD-JB)
+- Conta fake ou legítima ativada no PS5
+- Para firmware 4.03 a 12.40, obtenha o PKG do app YouTube (PPSA01650) versão 01.000.003
+- Para firmware 12.60 ou superior, obtenha o PKG do app YouTube (PPSA01650) versão 01.000.030
+- Acesso FTP ao console
 
-### For Non-Jailbroken PS5
-- USB flash drive
-- Pre-made backup file
+### Para PS5 sem jailbreak
+- Pen drive USB
+- Arquivo de backup pronto
 
-## Setup Instructions
+## Instruções de configuração
 
-### Configure Network DNS Settings (Optional, but highly recommended)
+### Configurar o DNS da rede (opcional, mas altamente recomendado)
 
-1. Navigate to **Settings > Network > Settings > Set Up Internet Connection**
-2. Scroll to the bottom and select **Set Up Manually**
-3. Choose your connection type:
-   - **Use WiFi**: Enter your network name and password manually, then set security to "WPA-Personal..."
-   - **Use a LAN Cable**: Proceed to the next step
-4. Under **DNS Settings**, change from "Automatic" to **Manual**
-5. Set **Primary DNS** to `127.0.0.2` (leave Secondary DNS blank)
-6. Press **Done** and wait for the connection to establish
+1. Acesse **Configurações > Rede > Configurações > Configurar conexão com a Internet**
+2. Role até o final e selecione **Configurar manualmente**
+3. Escolha o tipo de conexão:
+   - **Usar Wi-Fi**: digite o nome e a senha da rede manualmente e defina a segurança como "WPA-Personal..."
+   - **Usar cabo LAN**: siga para o próximo passo
+4. Em **Configurações de DNS**, altere de "Automático" para **Manual**
+5. Defina o **DNS primário** como `127.0.0.2` (deixe o DNS secundário em branco)
+6. Pressione **Concluído** e aguarde a conexão ser estabelecida
 
-**Note:** You may see a network/PSN connection error - this is expected and can be safely ignored. The console will still function normally for YouTube payload delivery.
+**Observação:** Você pode ver um erro de rede/PSN. Isso é esperado e pode ser ignorado com segurança. O console continuará funcionando normalmente para o envio de payloads do YouTube.
 
-**Alternative:** Instead of using 127.0.0.2, you can block PSN servers using your custom DNS server.
+**Alternativa:** em vez de usar 127.0.0.2, você pode bloquear os servidores da PSN usando um servidor DNS personalizado.
 
-#### Why is Setting DNS to 127.0.0.2 Required?
+#### Por que definir o DNS como 127.0.0.2 é necessário?
 
-The DNS configuration is critical for Y2JB to function properly for two technical reasons:
+A configuração de DNS é essencial para que o Y2JB funcione corretamente, por dois motivos técnicos:
 
-1. **Blocking PSN Connections**: Setting the DNS to 127.0.0.2 (localhost) prevents the PS5 from reaching PlayStation Network servers. This blocks both the YouTube app and system firmware update prompts that would otherwise interfere with the exploit.
+1. **Bloqueio de conexões com a PSN**: definir o DNS como 127.0.0.2 (localhost) impede que o PS5 alcance os servidores da PlayStation Network. Isso bloqueia tanto o app do YouTube quanto os avisos de atualização do firmware do sistema, que poderiam interferir no exploit.
 
-### Fake Account Activation
+### Ativação de conta fake
 
-**Note:** If you're using the backup file from the releases page, you can skip this section.
+**Observação:** se você estiver usando o arquivo de backup da página de releases, pode pular esta seção.
 
-Y2JB requires a **fake-activated account** to run properly.
+O Y2JB exige uma **conta com ativação fake** para funcionar corretamente.
 
-**Important:** If you have a legit PSN-activated account (officially registered through PlayStation Network), you **cannot** use it directly with Y2JB. You must create and use a separate fake-activated account instead.
+**Importante:** se você tiver uma conta com ativação legítima na PSN (registrada oficialmente na PlayStation Network), **não** poderá usá-la diretamente com o Y2JB. Você deve criar e usar uma conta separada, com ativação fake.
 
-**To fake activate an account:**
-1. Create a new offline account on your PS5
-2. While logging in to this new account, open **etaHEN toolbox**
-3. Navigate to the **"Remote Play"** menu
-4. The account will be automatically fake activated
+**Para ativar uma conta como fake:**
+1. Crie uma nova conta offline no seu PS5
+2. Enquanto estiver conectado a essa nova conta, abra o **etaHEN toolbox**
+3. Acesse o menu **"Remote Play"**
+4. A conta será ativada automaticamente como fake
 
-### Jailbroken PS5
+### PS5 com jailbreak
 
-1. Install YouTube app PKG on your PS5
-2. Download `download0.dat` from the releases page.
-3. Transfer `download0.dat` with [Prospero Manager](https://github.com/notmaj0r/ProsperoMgr), [FTP](https://github.com/ps5-payload-dev/ftpsrv), or any file manager to the path matching your YouTube app's TITLE ID (create the folder if it does not exist):
+1. Instale o PKG do app YouTube no seu PS5
+2. Baixe o `download0.dat` na página de releases.
+3. Transfira o `download0.dat` com o [Prospero Manager](https://github.com/notmaj0r/ProsperoMgr), [FTP](https://github.com/ps5-payload-dev/ftpsrv) ou qualquer gerenciador de arquivos para o caminho correspondente ao TITLE ID do seu app do YouTube (crie a pasta se ela não existir):
    ```
    /user/download/PPSA01650
    /user/download/PPSA01651
    /user/download/PPSA01652
    ```
-   You only need to use one path. Choose the one matching your YouTube app's TITLE ID.
+   Você só precisa usar um caminho. Escolha o que corresponde ao TITLE ID do seu app do YouTube.
 
-### Non-Jailbroken PS5
+### PS5 sem jailbreak
 
-1. Download the backup file from the releases page  
+1. Baixe o arquivo de backup na página de releases  
 **Firmware 4.03 – 12.40** → `Y2JB_backup_1.6(4.03)`  
-**Firmware 12.60 and up** → `Y2JB_backup_1.6(12.20)`  
-2. Follow Sony's official guide to [restore backup data from USB](https://www.playstation.com/en-gb/support/hardware/back-up-ps5-data-USB/)
+**Firmware 12.60 ou superior** → `Y2JB_backup_1.6(12.20)`  
+2. Siga o guia oficial da Sony para [restaurar dados de backup via USB](https://www.playstation.com/en-gb/support/hardware/back-up-ps5-data-USB/)
 
-**⚠️ WARNING:** Restoring backup data **WILL FACTORY RESET YOUR PS5**. All data on your console will be erased.
+**⚠️ AVISO:** restaurar o backup **VAI RESTAURAR O PS5 PARA OS PADRÕES DE FÁBRICA**. Todos os dados do console serão apagados.
 
-### Blocking YouTube Updates (appinfo_editor.py)
+### Bloqueando atualizações do YouTube (appinfo_editor.py)
 
-**⚠️ CRITICAL WARNING:** Database corruption can result in the deletion of **ALL installed FPKGs and savedata** stored on your internal storage. Before proceeding with this section, **backup your savedata** using the PS5's built-in backup and restore feature in Settings to prevent data loss.
+**⚠️ AVISO CRÍTICO:** a corrupção do banco de dados pode resultar na exclusão de **TODOS os FPKGs instalados e dados de save** armazenados na memória interna. Antes de seguir esta seção, **faça backup dos seus saves** usando o recurso de backup e restauração integrado do PS5, em Configurações, para evitar perda de dados.
 
-This script prevents the YouTube app from updating if you accidentally connect to the internet. Allowing updates can cause a softlock that prevents YouTube from launching (see next section for fix instructions).  
+Este script impede que o app do YouTube seja atualizado caso você se conecte à internet por acidente. Permitir atualizações pode causar um softlock que impede o YouTube de abrir (veja a próxima seção para as instruções de correção).
 
-**Steps:**
-1. After installing the YouTube PKG, retrieve `/system_data/priv/mms/appinfo.db` from your PS5 using FTP
-2. Place `appinfo.db` in the same directory as `appinfo_editor.py`
-3. Run the script to modify `appinfo.db` and block YouTube updates:
+**Passos:**
+1. Após instalar o PKG do YouTube, obtenha `/system_data/priv/mms/appinfo.db` do seu PS5 usando FTP
+2. Coloque o `appinfo.db` no mesmo diretório do `appinfo_editor.py`
+3. Execute o script para modificar o `appinfo.db` e bloquear as atualizações do YouTube:
    ```
    python appinfo_editor.py
    ```
-4. **Before replacing the file** on your PS5 (to avoid database corruption):
-   - Close the YouTube app completely
-   - Navigate to the Settings page
-   - Ensure no packages are currently being installed or updated
-5. Use FTP to replace `/system_data/priv/mms/appinfo.db` with the modified version
-6. If you don't receive any database corruption notification, reboot your PS5
+4. **Antes de substituir o arquivo** no seu PS5 (para evitar corrupção do banco de dados):
+   - Feche o app do YouTube completamente
+   - Acesse a página de Configurações
+   - Confirme que nenhum pacote está sendo instalado ou atualizado no momento
+5. Use o FTP para substituir `/system_data/priv/mms/appinfo.db` pela versão modificada
+6. Se você não receber nenhuma notificação de corrupção do banco de dados, reinicie o seu PS5
 
-### How to Escape from YouTube Softlock
+### Como sair do softlock do YouTube
 ![youtube_softlock](https://github.com/user-attachments/assets/62012e7f-e004-4e20-8c18-bd7d0bbd72b1)
 
-This issue typically occurs when you connect to the internet **before** setting the 127.0.0.2 DNS (most common with WiFi users).
+Este problema normalmente ocorre quando você se conecta à internet **antes** de definir o DNS 127.0.0.2 (mais comum em usuários de Wi-Fi).
 
-**Recovery steps:**
-1. Once softlocked, connect to the internet normally without custom DNS
-2. Launch YouTube again and deny the system software update popup
-3. The YouTube app should now launch successfully
-4. Run the jailbreak and load HEN
-5. Set the DNS to 127.0.0.2 again, then uninstall YouTube
-6. Follow the **Jailbroken PS5** section and **Blocking YouTube Updates (appinfo_editor.py)** section again
-7. Restart your PS5. Done.
+**Passos para recuperação:**
+1. Com o softlock ativo, conecte-se normalmente à internet, sem DNS personalizado
+2. Abra o YouTube novamente e recuse o popup de atualização do software do sistema
+3. O app do YouTube deve abrir normalmente agora
+4. Execute o jailbreak e carregue o HEN
+5. Defina o DNS como 127.0.0.2 novamente e desinstale o YouTube
+6. Siga novamente as seções **PS5 com jailbreak** e **Bloqueando atualizações do YouTube (appinfo_editor.py)**
+7. Reinicie o seu PS5. Pronto.
 
-## Sending Payloads
+## Enviando payloads
 
-**Note:** The Remote JS Server does not always use port 50000. While it typically defaults to port 50000, it may occasionally use a different port - this is normal behavior, not a bug.
+**Observação:** o Remote JS Server nem sempre usa a porta 50000. Embora normalmente use a porta 50000 por padrão, às vezes pode usar outra porta. Isso é um comportamento normal, não um bug.
 
-You can send payloads using `payload_sender.py` (requires Python).
+Você pode enviar payloads usando o `payload_sender.py` (requer Python).
 
-**Usage:**
+**Uso:**
 ```
-python payload_sender.py <host> <file>
-python payload_sender.py <host> <port> <file>
+python payload_sender.py <host> <arquivo>
+python payload_sender.py <host> <porta> <arquivo>
 ```
 
-**Examples:**
+**Exemplos:**
 ```
 python payload_sender.py 192.168.1.100 helloworld.js
 python payload_sender.py 192.168.1.100 50000 helloworld.js
 python payload_sender.py 192.168.1.100 9020 payload.bin
 ```
 
-### Lapse Payload
+### Payload Lapse
 
-**Firmware Compatibility:** Only works up to firmware 10.01
+**Compatibilidade de firmware:** funciona apenas até o firmware 10.01
 
-After the Lapse payload succeeds, you need to send the HEN or other elf binary to port **9021**. You can use any TCP payload sender such as:
+Depois que o payload Lapse for executado com sucesso, você precisa enviar o HEN ou outro binário ELF para a porta **9021**. Você pode usar qualquer enviador de payload TCP, como:
 - `netcat`
 - `payload_sender.py`
 
-**Example:**
+**Exemplo:**
 ```
 python payload_sender.py 192.168.1.100 9021 hen.bin
 ```
 
-### Relapse Payload
+### Payload Relapse
 
-**Firmware Compatibility:** Works up to firmware 13.60
-- Requires an active network connection (Wi-Fi or Ethernet). 
+**Compatibilidade de firmware:** funciona até o firmware 13.60
+- Requer uma conexão de rede ativa (Wi-Fi ou Ethernet).
 
-After the Relapse payload succeeds, elfldr starts listening on port **9021**.
+Depois que o payload Relapse for executado com sucesso, o elfldr começa a escutar na porta **9021**.
 
-## Credits
+## Aviso legal
 
-* **[shahrilnet](https://github.com/shahrilnet), [null_ptr](https://github.com/n0llptr)** - Referenced many codes from [Remote Lua Loader](https://github.com/shahrilnet/remote_lua_loader)
-* **[BenNoxXD](https://github.com/BenNoxXD)** - [ClosePlayer](https://github.com/BenNoxXD/PS5-BDJ-HEN-loader) reference
-* **[ntfargo](https://github.com/ntfargo)** - Thanks for providing V8 CVEs and CTF writeups
-* **abc and psfree team** - Lapse implementation
-* **[flat_z](https://github.com/flatz) and [LM](https://github.com/LightningMods)** - Helping implement GPU rw using direct ioctl
-* **[john-tornblom](https://github.com/john-tornblom) and [EchoStretch](https://github.com/EchoStretch)** - Providing elfldr.elf payload
-* **[hammer-83](https://github.com/hammer-83)** - Various BD-J PS5 exploit references
-* **[zecoxao](https://github.com/zecoxao), [idlesauce](https://github.com/idlesauce), and [TheFlow](https://github.com/theofficialflow)** - Helping troubleshoot dlsym
-* **[Dr.Yenyen](https://github.com/DrYenyen) and PS5 R&D community** - Testing Y2JB
-* **Rush** - Creating Y2JB backup file
-* **[ufm42](https://github.com/ufm42)** - [kexp](https://github.com/ufm42/kexp) used for PS5 post JB all-in-one shellcode
-* **[maj0r](https://github.com/notmaj0r)** - Relapse implementation
-
-## Disclaimer
-
-This tool is provided as-is for research and development purposes only.  
-Use at your own risk.  
-The developers are not responsible for any damage, data loss, or consequences resulting from the use of this software.  
+Esta ferramenta é fornecida como está, apenas para fins de pesquisa e desenvolvimento.  
+Use por sua conta e risco.  
+Os desenvolvedores não se responsabilizam por quaisquer danos, perda de dados ou consequências decorrentes do uso deste software.  

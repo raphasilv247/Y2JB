@@ -1,4 +1,4 @@
-// Global functions
+// Funções globais
 let addrof;
 let read64;
 let write64;
@@ -20,7 +20,7 @@ let syscall;
 let Thrd_create;
 let Thrd_join;
 
-// Global objects
+// Objetos globais
 let allocated_buffers = [];
 let eboot_base = 0n;
 let libc_base = 0n;

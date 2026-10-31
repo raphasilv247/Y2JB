@@ -9,13 +9,13 @@ let kernel = {
 };
 
 let kernel_offset = {
-  // proc structure
+  // estrutura proc
   PROC_FD:            0x48n,
   PROC_PID:           0xbcn,
   // filedesc
   FILEDESC_OFILES:    0x8n,
   SIZEOF_OFILES:      0x30n,
-  // net
+  // rede
   SO_PCB:             0x18n,
   INPCB_PKTOPTS:      0x120n,
 };
@@ -201,7 +201,7 @@ ipv6_kernel_rw.copyout = function(kaddr, uaddr, len) {
    if (kaddr === null || kaddr === undefined || 
        uaddr === null || uaddr === undefined || 
        len === null || len === undefined || len === 0n) {
-       throw new Error("copyout: invalid arguments");
+       throw new Error("copyout: argumentos inválidos");
    }
     
     write64(ipv6_kernel_rw.data.pipemap_buffer, 0x4000000040000000n);
@@ -221,7 +221,7 @@ ipv6_kernel_rw.copyin = function(uaddr, kaddr, len) {
    if (kaddr === null || kaddr === undefined || 
        uaddr === null || uaddr === undefined || 
        len === null || len === undefined || len === 0n) {
-       throw new Error("copyout: invalid arguments");
+       throw new Error("copyout: argumentos inválidos");
    }
     
     

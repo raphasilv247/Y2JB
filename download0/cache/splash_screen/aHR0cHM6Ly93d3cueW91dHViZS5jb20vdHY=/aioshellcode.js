@@ -30,17 +30,17 @@ async function map_shellcode(bin_data) {
     const fd_buf  = malloc(4n);
     const exec_fd = syscall(SYSCALL.jitshm_create, 0n, aligned_size, 0x7n);
     if (exec_fd < 0n) {
-        throw new Error("jitshm_create failed: " + toHex(exec_fd));
+        throw new Error("jitshm_create falhou: " + toHex(exec_fd));
     }
 
     const entry_addr = syscall(SYSCALL.mmap, 0n, aligned_size, PROT_RWX, MAP_SHARED, exec_fd, 0n);
     if (entry_addr === 0n || entry_addr === BigInt(-1)) {
-        throw new Error("mmap failed (size=0x" + aligned_size.toString(16) + ")");
+        throw new Error("mmap falhou (tamanho=0x" + aligned_size.toString(16) + ")");
     }
 
     write_buffer(entry_addr, bin_data);
 
-    await log("Shellcode mapped @ " + toHex(entry_addr) + " (size: 0x" + aligned_size.toString(16) + ")");
+    await log("Shellcode mapeado em " + toHex(entry_addr) + " (tamanho: 0x" + aligned_size.toString(16) + ")");
     return entry_addr;
 }
 
@@ -56,29 +56,29 @@ async function run_shellcode(entry_addr) {
 
     const thr_handle = malloc(8n);
 
-    await log("Spawning shellcode thread at: " + toHex(entry_addr));
+    await log("Criando thread do shellcode em: " + toHex(entry_addr));
 
     const ret = call(Thrd_create, thr_handle, entry_addr, args);
     if (ret !== 0n) {
-        throw new Error("Thrd_create failed: " + toHex(ret));
+        throw new Error("Thrd_create falhou: " + toHex(ret));
     }
 
     const handle = read64(thr_handle);
-    await log("Shellcode thread spawned, handle: " + toHex(handle));
+    await log("Thread do shellcode criada, handle: " + toHex(handle));
 
     const ret_val = malloc(8n);
     const join_ret = call(Thrd_join, handle, ret_val);
     if (join_ret !== 0n) {
-        throw new Error("Thrd_join failed: " + toHex(join_ret));
+        throw new Error("Thrd_join falhou: " + toHex(join_ret));
     }
 
-    await log("Shellcode returned: " + toHex(read64(ret_val)));
+    await log("Shellcode retornou: " + toHex(read64(ret_val)));
 }
 
 async function load_elfldr() {
     const path = find_file(ELFLDR_NAME);
     if (!path) {
-        throw new Error("elfldr file not found: " + ELFLDR_NAME);
+        throw new Error("arquivo do elfldr não encontrado: " + ELFLDR_NAME);
     }
 
     elfldr_data = read_file(path);
@@ -86,22 +86,22 @@ async function load_elfldr() {
     write_buffer(elfldr_addr, elfldr_data);
     elfldr_size = BigInt(elfldr_data.length);
 
-    await log("elfldr @ " + toHex(elfldr_addr) + " size: 0x" + elfldr_size.toString(16));
+    await log("elfldr @ " + toHex(elfldr_addr) + " tamanho: 0x" + elfldr_size.toString(16));
 }
 
 async function load_bin() {
     const path = find_file(BIN_NAME);
     if (!path) {
-        throw new Error("kexp bin file not found: " + BIN_NAME);
+        throw new Error("arquivo bin do kexp não encontrado: " + BIN_NAME);
     }
 
     const bin_data = read_file(path);
-    await log("Bin size: " + bin_data.length + " (0x" + bin_data.length.toString(16) + ")");
+    await log("Tamanho do bin: " + bin_data.length + " (0x" + bin_data.length.toString(16) + ")");
 
     const entry_addr = await map_shellcode(bin_data);
     await run_shellcode(entry_addr);
 
-    await log("=== Shellcode done ===");
+    await log("=== Shellcode concluído ===");
 }
 
 async function load_aioshellcode(arg_allproc, arg_master_pipe, arg_victim_pipe) {
@@ -111,8 +111,7 @@ async function load_aioshellcode(arg_allproc, arg_master_pipe, arg_victim_pipe) 
     master_pipe = arg_master_pipe;
     victim_pipe = arg_victim_pipe;
 
-    await log("=== PS5 AIO JB Shellcode by ufm42 ===");
+    await log("=== Shellcode AIO JB do PS5 ===");
     await load_elfldr();
     await load_bin();
 }
-

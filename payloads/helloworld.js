@@ -1,6 +1,6 @@
 (async () => {
     
-    await log("Hello from remote JS!");
-    send_notification("Hello from remote JS!");
+    await log("Olá do JS remoto!");
+    send_notification("Olá do JS remoto!");
     
 })()

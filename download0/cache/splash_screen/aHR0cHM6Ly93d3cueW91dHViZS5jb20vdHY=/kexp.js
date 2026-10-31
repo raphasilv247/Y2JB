@@ -1,4 +1,4 @@
-// Loads kexp.bin and elfldr-ps5.elf.
+// Carrega kexp.bin e elfldr-ps5.elf.
 
 const kexp = (function () {
     const KEXP_SIZE = 18912;
@@ -25,16 +25,16 @@ const kexp = (function () {
     function read_native_file(ctx, path) {
         const path_addr = alloc_string(path);
         const fd = syscall(SYSCALL.open, path_addr, O_RDONLY);
-        if (BigInt.asIntN(64, fd) < 0n) throw new Error("Kernel: could not open " + path);
+        if (BigInt.asIntN(64, fd) < 0n) throw new Error("Kernel: não foi possível abrir " + path);
 
         try {
             const stat_addr = ctx.native_malloc(0x100);
             const stat_result = BigInt.asIntN(64, syscall(SYSCALL.fstat, fd, stat_addr));
-            if (stat_result !== 0n) throw new Error("Kernel: fstat failed for " + path);
+            if (stat_result !== 0n) throw new Error("Kernel: fstat falhou para " + path);
 
             const size = read64(stat_addr + 0x48n);
             if (size < 0x1000n || size > MAX_ELFLDR_SIZE)
-                throw new Error("Kernel: invalid elfldr size: " + size);
+                throw new Error("Kernel: tamanho inválido do elfldr: " + size);
 
             const buffer = ctx.native_malloc(size);
             let offset = 0n;
@@ -43,7 +43,7 @@ const kexp = (function () {
                 const count = BigInt.asIntN(64,
                     syscall(SYSCALL.read, fd, buffer + offset, remaining));
                 if (count <= 0n || count > remaining)
-                    throw new Error("Kernel: short read for " + path + " at " + offset);
+                    throw new Error("Kernel: leitura incompleta de " + path + " em " + offset);
                 offset += count;
             }
 
@@ -59,14 +59,14 @@ const kexp = (function () {
 
     async function prepare_shellcode(ctx, entry_addr, size) {
         if (size !== KEXP_SIZE) {
-            await ctx.report("Kernel: unexpected shellcode size " + size);
+            await ctx.report("Kernel: tamanho inesperado do shellcode " + size);
             return false;
         }
 
         for (const [offset, expected] of resolver_calls) {
             for (let i = 0; i < expected.length; i++) {
                 if (Number(read8(entry_addr + BigInt(offset + i))) !== expected[i]) {
-                    await ctx.report("Kernel: resolver signature at 0x" + offset.toString(16) + " does not match");
+                    await ctx.report("Kernel: assinatura do resolver em 0x" + offset.toString(16) + " não confere");
                     return false;
                 }
             }
@@ -77,12 +77,12 @@ const kexp = (function () {
             if (first === 0xe8) {
                 write_nop(entry_addr + BigInt(offset), 5);
             } else if (first !== 0x90) {
-                await ctx.report("Kernel: log call at 0x" + offset.toString(16) + " does not match");
+                await ctx.report("Kernel: chamada de log em 0x" + offset.toString(16) + " não confere");
                 return false;
             }
             for (let i = 0; i < 5; i++) {
                 if (Number(read8(entry_addr + BigInt(offset + i))) !== 0x90) {
-                    await ctx.report("Kernel: log call patch at 0x" + offset.toString(16) + " did not stick");
+                    await ctx.report("Kernel: patch da chamada de log em 0x" + offset.toString(16) + " não foi aplicado");
                     return false;
                 }
             }
@@ -98,23 +98,23 @@ const kexp = (function () {
         ctx.restore_thread_attributes();
 
         if (typeof ctx.native_malloc !== "function") {
-            await ctx.report("Kernel: native buffer allocator is unavailable");
+            await ctx.report("Kernel: alocador de buffer nativo indisponível");
             return false;
         }
 
         if (!ctx.kbase || !ctx.proc_fd_addr) {
-            await ctx.report("Kernel: kernel r/w is incomplete");
+            await ctx.report("Kernel: leitura/escrita do kernel incompleta");
             return false;
         }
 
         const allproc = ctx.kaddr(ctx.off.allproc);
         if ((allproc >> 48n) !== 0xffffn || (allproc & 7n) !== 0n) {
-            await ctx.report("Kernel: allproc address is invalid: " + ctx.hex(allproc));
+            await ctx.report("Kernel: endereço de allproc inválido: " + ctx.hex(allproc));
             return false;
         }
 
         const elfldr_path = find_payload_file("elfldr-ps5.elf");
-        if (!elfldr_path) { await ctx.report("Kernel: elfldr-ps5.elf does not exist"); return false; }
+        if (!elfldr_path) { await ctx.report("Kernel: elfldr-ps5.elf não existe"); return false; }
         const elfldr_file = read_native_file(ctx, elfldr_path);
         const elfldr_ptr = elfldr_file.buffer;
         const elfldr_size = elfldr_file.size;
@@ -122,22 +122,22 @@ const kexp = (function () {
             Number(read8(elfldr_ptr + 1n)) !== 0x45 ||
             Number(read8(elfldr_ptr + 2n)) !== 0x4c ||
             Number(read8(elfldr_ptr + 3n)) !== 0x46) {
-            await ctx.report("Kernel: elfldr image has invalid ELF magic");
+            await ctx.report("Kernel: imagem do elfldr com magic ELF inválido");
             return false;
         }
 
         const kexp_path = find_payload_file("kexp.bin");
-        if (!kexp_path) { await ctx.report("Kernel: kexp.bin does not exist"); return false; }
+        if (!kexp_path) { await ctx.report("Kernel: kexp.bin não existe"); return false; }
         const kexp_data = read_file(kexp_path);
         if (!kexp_data || kexp_data.length !== KEXP_SIZE) {
-            await ctx.report("Kernel: kexp.bin has an invalid size");
+            await ctx.report("Kernel: kexp.bin com tamanho inválido");
             return false;
         }
         const kexp_aligned_size = align_up(kexp_data.length, PAGE_SIZE);
 
         const exec_fd = syscall(SYSCALL.jitshm_create, 0n, BigInt(kexp_aligned_size), PROT_RWX);
         if (exec_fd === 0xffffffffffffffffn || exec_fd < 0n || exec_fd >= 0x100000n) {
-            await ctx.report("Kernel: jitshm_create failed: " + ctx.hex(exec_fd));
+            await ctx.report("Kernel: jitshm_create falhou: " + ctx.hex(exec_fd));
             return false;
         }
 
@@ -146,20 +146,20 @@ const kexp = (function () {
         if (!is_user_address(entry_addr)) {
             const alias_fd = syscall(SYSCALL.jitshm_alias, exec_fd, PROT_READ | PROT_WRITE);
             if (alias_fd === 0xffffffffffffffffn || alias_fd < 0n || alias_fd >= 0x100000n) {
-                await ctx.report("Kernel: jitshm_alias failed: " + ctx.hex(alias_fd));
+                await ctx.report("Kernel: jitshm_alias falhou: " + ctx.hex(alias_fd));
                 return false;
             }
             const writable = syscall(SYSCALL.mmap, 0n, BigInt(kexp_aligned_size),
                 PROT_READ | PROT_WRITE, MAP_SHARED, alias_fd, 0n);
             if (!is_user_address(writable)) {
-                await ctx.report("Kernel: writable shellcode mmap failed: " + ctx.hex(writable));
+                await ctx.report("Kernel: mmap do shellcode gravável falhou: " + ctx.hex(writable));
                 return false;
             }
             write_buffer(writable, kexp_data);
             entry_addr = syscall(SYSCALL.mmap, 0n, BigInt(kexp_aligned_size), PROT_RWX,
                 MAP_SHARED, exec_fd, 0n);
             if (!is_user_address(entry_addr)) {
-                await ctx.report("Kernel: executable shellcode mmap failed: " + ctx.hex(entry_addr));
+                await ctx.report("Kernel: mmap do shellcode executável falhou: " + ctx.hex(entry_addr));
                 return false;
             }
         } else {
@@ -179,7 +179,7 @@ const kexp = (function () {
         write64(args + 0x20n, elfldr_size);
 
         if (typeof Thrd_create !== "bigint" || typeof Thrd_join !== "bigint") {
-            await ctx.report("Kernel: Y2JB thread entry points are unavailable");
+            await ctx.report("Kernel: pontos de entrada de thread do Y2JB indisponíveis");
             return false;
         }
 
@@ -187,13 +187,13 @@ const kexp = (function () {
         write64(thr_handle_addr, 0n);
         const created = call(Thrd_create, thr_handle_addr, entry_addr, args);
         if (created !== 0n) {
-            await ctx.report("Kernel: Thrd_create returned " + ctx.hex(created));
+            await ctx.report("Kernel: Thrd_create retornou " + ctx.hex(created));
             return false;
         }
 
         const thr_handle = read64(thr_handle_addr);
         if (!thr_handle) {
-            await ctx.report("Kernel: Thrd_create returned an empty thread handle");
+            await ctx.report("Kernel: Thrd_create retornou um handle de thread vazio");
             return false;
         }
 
@@ -201,11 +201,11 @@ const kexp = (function () {
         write64(result_addr, 0n);
         const joined = call(Thrd_join, thr_handle, result_addr);
         if (joined !== 0n) {
-            await ctx.report("Kernel: Thrd_join returned " + ctx.hex(joined));
+            await ctx.report("Kernel: Thrd_join retornou " + ctx.hex(joined));
             return false;
         }
 
-        await ctx.stage("kexp: elfldr returned " + ctx.hex(read64(result_addr)));
+        await ctx.stage("kexp: elfldr retornou " + ctx.hex(read64(result_addr)));
         return true;
     }
 
